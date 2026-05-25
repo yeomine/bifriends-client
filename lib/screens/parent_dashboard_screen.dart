@@ -3,49 +3,75 @@ import '../models/growth_report_model.dart';
 import '../theme/app_colors.dart';
 import '../widgets/guardian_mission_sheet.dart';
 
-class ParentDashboardScreen extends StatelessWidget {
+class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({super.key});
 
+  @override
+  State<ParentDashboardScreen> createState() => _ParentDashboardScreenState();
+}
+
+class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   static const _allDays = ['월', '화', '수', '목', '금', '토', '일'];
+
+  // TODO: BE 연동 시 API 응답으로 교체
+  final List<GrowthReport> _reports = GrowthReport.mockHistory();
+  bool _hasLatestReport = false;
+  int _selectedIndex = 0;
+
+  GrowthReport get _currentReport => _reports[_selectedIndex];
+
+  void _generateLatestReport() {
+    // TODO: BE 연동 시 API 호출로 교체
+    setState(() {
+      _reports.insert(0, GrowthReport.mockLatest());
+      _hasLatestReport = true;
+      _selectedIndex = 0;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    // TODO: BE 연동 시 GrowthReport.fromJson(response)으로 교체
-    final report = GrowthReport.mock();
+    final report = _currentReport;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: _buildAppBar(context, report.childName),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 100),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildDateRow(report),
-                const SizedBox(height: 20),
-                _buildSummaryCard(report),
-                const SizedBox(height: 24),
-                _buildLearningPatternCard(report),
-                const SizedBox(height: 24),
-                const Text(
-                  '학습 현황',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textMain,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildWeekSelector(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 100),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSummaryCard(report),
+                      const SizedBox(height: 24),
+                      _buildLearningPatternCard(report),
+                      const SizedBox(height: 24),
+                      const Text(
+                        '학습 현황',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textMain,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      ...report.subjects.map(
+                        (s) => Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _buildSubjectCard(s),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                ...report.subjects.map(
-                  (s) => Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: _buildSubjectCard(s),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
           Positioned(
             bottom: 20,
@@ -104,45 +130,68 @@ class ParentDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDateRow(GrowthReport report) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppColors.textMain,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            report.weekRange,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
+  Widget _buildWeekSelector() {
+    return SizedBox(
+      height: 56,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        children: [
+          if (!_hasLatestReport) ...[
+            _buildGenerateButton(),
+            const SizedBox(width: 8),
+          ],
+          ..._reports.asMap().entries.map((entry) {
+            final isLast = entry.key == _reports.length - 1;
+            return Padding(
+              padding: EdgeInsets.only(right: isLast ? 0 : 8),
+              child: _buildReportPill(entry.value.weekRange, entry.key),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGenerateButton() {
+    return OutlinedButton.icon(
+      onPressed: _generateLatestReport,
+      icon: const Icon(Icons.add, size: 16),
+      label: const Text('최신 리포트 생성'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.textMain,
+        side: const BorderSide(color: AppColors.borderLight, width: 1.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _buildReportPill(String weekRange, int index) {
+    final isSelected = index == _selectedIndex;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedIndex = index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.textMain : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppColors.textMain : AppColors.borderLight,
+            width: 1.5,
           ),
         ),
-        const SizedBox(width: 12),
-        OutlinedButton.icon(
-          onPressed: () {
-            // TODO: 최신 리포트 생성 API 호출
-          },
-          icon: const Icon(Icons.add, size: 16),
-          label: const Text('최신 리포트 생성'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.textMain,
-            side: const BorderSide(color: AppColors.borderLight, width: 1.5),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            textStyle: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
+        child: Text(
+          weekRange,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: isSelected ? Colors.white : AppColors.textMain,
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -241,31 +290,27 @@ class ParentDashboardScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: _allDays.map((day) {
               final isActive = report.pattern.studyDays.contains(day);
-              return Column(
-                children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
+              return Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? AppColors.primary
+                      : Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Text(
+                    day,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
                       color: isActive
-                          ? AppColors.primary
-                          : Colors.white.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Text(
-                        day,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: isActive
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.35),
-                        ),
-                      ),
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.35),
                     ),
                   ),
-                ],
+                ),
               );
             }).toList(),
           ),
