@@ -4,7 +4,10 @@ import '../services/stt_service.dart';
 import '../theme/app_colors.dart';
 
 class ConversationScreen extends StatefulWidget {
-  const ConversationScreen({super.key});
+  // TODO: BE 연동 시 실제 닉네임 전달
+  final String nickname;
+
+  const ConversationScreen({super.key, this.nickname = '정우치치'});
 
   @override
   State<ConversationScreen> createState() => _ConversationScreenState();
@@ -35,14 +38,14 @@ class _ConversationScreenState extends State<ConversationScreen> {
     ),
   ];
 
-  // TODO: BE 연동 시 세션별 메시지 로드로 교체
-  List<ChatMessage> _messages = [
-    ChatMessage(
-      id: 'msg_1',
-      content: '안녕! 나랑 이야기할래?\n오늘 기분은 어때?',
-      isUser: false,
-      timestamp: DateTime.now().subtract(const Duration(minutes: 5)),
-    ),
+  // TODO: BE 연동 시 세션별 메시지 로드로 교체 (_messages가 비어있으면 웰컴 화면 표시)
+  List<ChatMessage> _messages = [];
+
+  static const List<(String, String)> _quickReplies = [
+    ('🔢', '수학이 어려워'),
+    ('📖', '국어 도와줘'),
+    ('💬', '그냥 레오랑 이야기 나누고 싶어'),
+    ('✅', '오늘 할 일 적을게'),
   ];
 
   @override
@@ -101,6 +104,38 @@ class _ConversationScreenState extends State<ConversationScreen> {
         );
       }
     });
+  }
+
+  void _sendQuickReply(String text) {
+    _messageController.text = text;
+    _sendMessage();
+  }
+
+  // 받침 있으면 '아', 없으면 '야'
+  String _vocativeParticle(String name) {
+    if (name.isEmpty) return '야';
+    final code = name.codeUnitAt(name.length - 1);
+    if (code < 0xAC00 || code > 0xD7A3) return '야';
+    return (code - 0xAC00) % 28 == 0 ? '야' : '아';
+  }
+
+  // TODO: BE 연동 시 제거 — 세션 ID로 실제 메시지 로드
+  List<ChatMessage> _mockMessagesForSession(String sessionId) {
+    final title = _sessions.firstWhere((s) => s.id == sessionId).title;
+    return [
+      ChatMessage(
+        id: '${sessionId}_1',
+        content: '안녕! 나랑 이야기할래?\n오늘 기분은 어때?',
+        isUser: false,
+        timestamp: DateTime.now().subtract(const Duration(minutes: 10)),
+      ),
+      ChatMessage(
+        id: '${sessionId}_2',
+        content: title,
+        isUser: true,
+        timestamp: DateTime.now().subtract(const Duration(minutes: 8)),
+      ),
+    ];
   }
 
   @override
@@ -197,29 +232,24 @@ class _ConversationScreenState extends State<ConversationScreen> {
   }
 
   Widget _buildMessagesList() {
+    if (_messages.isEmpty) return _buildWelcomeScreen();
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       itemCount: _messages.length,
-      itemBuilder: (context, index) {
-        final msg = _messages[index];
-        if (index == 0 && !msg.isUser) {
-          return _buildGreetingMessage(msg);
-        }
-        return _buildMessageBubble(msg);
-      },
+      itemBuilder: (context, index) => _buildMessageBubble(_messages[index]),
     );
   }
 
-  Widget _buildGreetingMessage(ChatMessage msg) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 32),
+  Widget _buildWelcomeScreen() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
       child: Column(
         children: [
-          Image.asset('assets/images/leo_default.png', width: 90, height: 90),
+          Image.asset('assets/images/leo_default.png', width: 96, height: 96),
           const SizedBox(height: 20),
           Text(
-            msg.content,
+            '${widget.nickname}${_vocativeParticle(widget.nickname)}, 안녕! 👋\n오늘 어떤 이야기를 해볼까?',
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 18,
@@ -228,7 +258,48 @@ class _ConversationScreenState extends State<ConversationScreen> {
               height: 1.6,
             ),
           ),
+          const SizedBox(height: 28),
+          ..._quickReplies.map((r) => _buildQuickReplyButton(r.$1, r.$2)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildQuickReplyButton(String emoji, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: GestureDetector(
+        onTap: () => _sendQuickReply(text),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE8E8E8), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Text(emoji, style: const TextStyle(fontSize: 18)),
+              const SizedBox(width: 12),
+              Text(
+                text,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMain,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -408,8 +479,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  // TODO: 새로운 대화 시작 API 호출
+                  // TODO: BE 연동 시 새 세션 생성 API 호출
                   setState(() {
+                    _messages = [];
                     _isHistoryOpen = false;
                     _isSessionsExpanded = false;
                   });
@@ -485,9 +557,10 @@ class _ConversationScreenState extends State<ConversationScreen> {
                         ...pastSessions.map(
                           (session) => GestureDetector(
                             onTap: () {
-                              // TODO: BE 연동 시 해당 세션 메시지 로드
+                              // TODO: BE 연동 시 _mockMessagesForSession을 실제 API 로드로 교체
                               setState(() {
                                 _activeSessionId = session.id;
+                                _messages = _mockMessagesForSession(session.id);
                                 _isHistoryOpen = false;
                                 _isSessionsExpanded = false;
                               });
