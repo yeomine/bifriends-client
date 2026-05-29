@@ -67,6 +67,10 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                           child: _buildSubjectCard(s),
                         ),
                       ),
+                      if (report.chatSafetySignal != null) ...[
+                        _buildChatSafetyCard(report.chatSafetySignal!),
+                        const SizedBox(height: 16),
+                      ],
                     ],
                   ),
                 ),
@@ -447,6 +451,59 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     );
   }
 
+  Widget _buildChatSafetyCard(ChatSafetySignal signal) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: signal.level.backgroundColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: signal.level.borderColor, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.verified_user_outlined,
+                color: signal.level.color,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                '챗 안전 신호: ',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textMain,
+                ),
+              ),
+              Text(
+                signal.level.label,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: signal.level.color,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            signal.description,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textMain,
+              height: 1.7,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMissionButton(BuildContext context) {
     return ElevatedButton(
       onPressed: () {
@@ -481,3 +538,4 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     );
   }
 }
+

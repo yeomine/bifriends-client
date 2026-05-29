@@ -1,6 +1,81 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
+enum ChatSafetyLevel { green, yellow, red }
+
+extension ChatSafetyLevelExt on ChatSafetyLevel {
+  String get label {
+    switch (this) {
+      case ChatSafetyLevel.green:
+        return 'Green';
+      case ChatSafetyLevel.yellow:
+        return 'Yellow';
+      case ChatSafetyLevel.red:
+        return 'Red';
+    }
+  }
+
+  static ChatSafetyLevel fromString(String value) {
+    switch (value.toLowerCase()) {
+      case 'green':
+        return ChatSafetyLevel.green;
+      case 'yellow':
+        return ChatSafetyLevel.yellow;
+      case 'red':
+        return ChatSafetyLevel.red;
+      default:
+        return ChatSafetyLevel.green;
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case ChatSafetyLevel.green:
+        return const Color(0xFF4CAF50);
+      case ChatSafetyLevel.yellow:
+        return const Color(0xFFFFB300);
+      case ChatSafetyLevel.red:
+        return const Color(0xFFE53935);
+    }
+  }
+
+  Color get backgroundColor {
+    switch (this) {
+      case ChatSafetyLevel.green:
+        return const Color(0xFFE8F5F0);
+      case ChatSafetyLevel.yellow:
+        return const Color(0xFFFFF8E1);
+      case ChatSafetyLevel.red:
+        return const Color(0xFFFFEBEE);
+    }
+  }
+
+  Color get borderColor {
+    switch (this) {
+      case ChatSafetyLevel.green:
+        return const Color(0xFF80CBC4);
+      case ChatSafetyLevel.yellow:
+        return const Color(0xFFFFCC80);
+      case ChatSafetyLevel.red:
+        return const Color(0xFFEF9A9A);
+    }
+  }
+}
+
+class ChatSafetySignal {
+  final ChatSafetyLevel level;
+  final String description;
+
+  const ChatSafetySignal({required this.level, required this.description});
+
+  factory ChatSafetySignal.fromJson(Map<String, dynamic> json) {
+    return ChatSafetySignal(
+      level: ChatSafetyLevelExt.fromString(json['level'] as String),
+      description: json['description'] as String,
+    );
+  }
+}
+
 enum SubjectType { korean, math, social }
 
 extension SubjectTypeExt on SubjectType {
@@ -86,6 +161,7 @@ class GrowthReport {
   final String summary;
   final LearningPattern pattern;
   final List<SubjectReport> subjects;
+  final ChatSafetySignal? chatSafetySignal;
 
   const GrowthReport({
     required this.childName,
@@ -93,9 +169,11 @@ class GrowthReport {
     required this.summary,
     required this.pattern,
     required this.subjects,
+    this.chatSafetySignal,
   });
 
   factory GrowthReport.fromJson(Map<String, dynamic> json) {
+    final safetyJson = json['chatSafetySignal'] as Map<String, dynamic>?;
     return GrowthReport(
       childName: json['childName'] as String,
       weekRange: json['weekRange'] as String,
@@ -106,6 +184,8 @@ class GrowthReport {
       subjects: (json['subjects'] as List)
           .map((s) => SubjectReport.fromJson(s as Map<String, dynamic>))
           .toList(),
+      chatSafetySignal:
+          safetyJson != null ? ChatSafetySignal.fromJson(safetyJson) : null,
     );
   }
 
@@ -137,6 +217,11 @@ class GrowthReport {
           hardPoint: null,
         ),
       ],
+      chatSafetySignal: ChatSafetySignal(
+        level: ChatSafetyLevel.green,
+        description:
+            '정우치치는 자신의 감정을 인지하고 조절하려는 의지가 강하며, 정서적으로 매우 안정된 상태에서 학습에 참여하고 있습니다.',
+      ),
     ),
     GrowthReport(
       childName: '정우치치',
@@ -162,6 +247,11 @@ class GrowthReport {
           hardPoint: '집중 시간을 조금 더 늘려보면 좋겠어요.',
         ),
       ],
+      chatSafetySignal: ChatSafetySignal(
+        level: ChatSafetyLevel.yellow,
+        description:
+            '정우치치는 대체로 안정적이지만, 이번 주 일부 활동에서 집중력이 흔들리는 모습이 관찰되었어요. 가벼운 대화로 기분을 확인해 주세요.',
+      ),
     ),
     GrowthReport(
       childName: '정우치치',
@@ -184,6 +274,11 @@ class GrowthReport {
           hardPoint: null,
         ),
       ],
+      chatSafetySignal: ChatSafetySignal(
+        level: ChatSafetyLevel.green,
+        description:
+            '정우치치는 챗봇과의 대화에서 긍정적인 감정 표현이 많았고, 학습 전반에 걸쳐 안정된 심리 상태를 유지하고 있습니다.',
+      ),
     ),
     GrowthReport(
       childName: '정우치치',
@@ -218,6 +313,11 @@ class GrowthReport {
           hardPoint: null,
         ),
       ],
+      chatSafetySignal: ChatSafetySignal(
+        level: ChatSafetyLevel.red,
+        description:
+            '이번 주 정우치치가 부정적인 감정 표현을 반복하는 패턴이 감지되었어요. 학교나 친구 관계에서 어려움이 있는지 따뜻하게 여쭤봐 주세요.',
+      ),
     ),
   ];
 
@@ -243,5 +343,10 @@ class GrowthReport {
         hardPoint: null,
       ),
     ],
+    chatSafetySignal: ChatSafetySignal(
+      level: ChatSafetyLevel.green,
+      description:
+          '정우치치는 자신의 감정을 인지하고 조절하려는 의지가 강하며, 정서적으로 매우 안정된 상태에서 학습에 참여하고 있습니다.',
+    ),
   );
 }

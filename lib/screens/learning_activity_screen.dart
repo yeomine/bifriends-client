@@ -33,7 +33,8 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
   bool _showSuccessOverlay = false;
   bool _isLastStepCompleted = false;
   late TextEditingController _answerController;
-  late TextEditingController _denominatorController; // used for fraction short-answer
+  late TextEditingController
+  _denominatorController; // used for fraction short-answer
 
   @override
   void initState() {
@@ -96,7 +97,8 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
           final den = int.tryParse(_denominatorController.text.trim());
           return num != null && den != null && _isCurrentAnswerCorrect;
         }
-        return _answerController.text.trim().isNotEmpty && _isCurrentAnswerCorrect;
+        return _answerController.text.trim().isNotEmpty &&
+            _isCurrentAnswerCorrect;
     }
   }
 
@@ -460,10 +462,11 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: (showWrong
-                            ? const Color(0xFFE57373)
-                            : AppColors.primary)
-                        .withValues(alpha: 0.15),
+                    color:
+                        (showWrong
+                                ? const Color(0xFFE57373)
+                                : AppColors.primary)
+                            .withValues(alpha: 0.15),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
@@ -490,7 +493,11 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
             ],
             const Spacer(),
             if (showWrong)
-              const Icon(Icons.cancel_rounded, color: Color(0xFFE57373), size: 22),
+              const Icon(
+                Icons.cancel_rounded,
+                color: Color(0xFFE57373),
+                size: 22,
+              ),
           ],
         ),
       ),
@@ -621,7 +628,9 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(
-          color: _isCurrentAnswerCorrect ? AppColors.primary : const Color(0xFFF3C74B),
+          color: _isCurrentAnswerCorrect
+              ? AppColors.primary
+              : const Color(0xFFF3C74B),
           width: 2,
         ),
       ),
@@ -925,11 +934,18 @@ class _StepCompletionOverlayState extends State<_StepCompletionOverlay>
                   children: _particles.map((p) {
                     if (progress < p.delay) return const SizedBox.shrink();
 
-                    final t = ((progress - p.delay) / (1 - p.delay)).clamp(0.0, 1.0);
+                    final t = ((progress - p.delay) / (1 - p.delay)).clamp(
+                      0.0,
+                      1.0,
+                    );
                     // Projectile motion: x = start + vx·t, y = start + vy·t + ½·g·t²
                     final x = (p.startX + p.velocityX * t) * size.width;
-                    final y = (p.startY + p.velocityY * t + 0.5 * p.gravity * t * t) * size.height;
-                    final opacity = t < 0.6 ? 1.0 : (1 - (t - 0.6) / 0.4).clamp(0.0, 1.0);
+                    final y =
+                        (p.startY + p.velocityY * t + 0.5 * p.gravity * t * t) *
+                        size.height;
+                    final opacity = t < 0.6
+                        ? 1.0
+                        : (1 - (t - 0.6) / 0.4).clamp(0.0, 1.0);
 
                     return Positioned(
                       left: x,
@@ -938,7 +954,10 @@ class _StepCompletionOverlayState extends State<_StepCompletionOverlay>
                         opacity: opacity,
                         child: Transform.rotate(
                           angle: p.rotationSpeed * t,
-                          child: Text(p.emoji, style: TextStyle(fontSize: p.size)),
+                          child: Text(
+                            p.emoji,
+                            style: TextStyle(fontSize: p.size),
+                          ),
                         ),
                       ),
                     );
