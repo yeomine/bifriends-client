@@ -536,26 +536,34 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
     );
   }
 
-  Widget _buildChoiceOption(String option, String correctAnswer) {
-    final isSelected = _selectedChoice == option;
+  Widget _buildOptionContainer({
+    required String tapKey,
+    required Widget Function(Color textColor, bool showWrong) builder,
+  }) {
+    final isSelected = _selectedChoice == tapKey;
     final showWrong = isSelected && _showWrongFeedback;
 
-    Color borderColor = const Color(0xFFDCD5CA);
-    Color bgColor = Colors.white;
-    Color textColor = AppColors.textMain;
-
+    final Color borderColor;
+    final Color bgColor;
     if (showWrong) {
       borderColor = const Color(0xFFE57373);
       bgColor = const Color(0xFFFFF3F3);
-      textColor = const Color(0xFFE57373);
     } else if (isSelected) {
       borderColor = AppColors.primary;
       bgColor = const Color(0xFFF0F8ED);
-      textColor = AppColors.primary;
+    } else {
+      borderColor = const Color(0xFFDCD5CA);
+      bgColor = Colors.white;
     }
 
+    final textColor = showWrong
+        ? const Color(0xFFE57373)
+        : isSelected
+            ? AppColors.primary
+            : AppColors.textMain;
+
     return GestureDetector(
-      onTap: () => _onChoiceTap(option),
+      onTap: () => _onChoiceTap(tapKey),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         margin: const EdgeInsets.only(bottom: 12),
@@ -568,112 +576,51 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color:
-                        (showWrong
-                                ? const Color(0xFFE57373)
-                                : AppColors.primary)
-                            .withValues(alpha: 0.15),
+                    color: (showWrong ? const Color(0xFFE57373) : AppColors.primary)
+                        .withValues(alpha: 0.15),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
                 ]
               : null,
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                option,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
-              ),
+        child: builder(textColor, showWrong),
+      ),
+    );
+  }
+
+  Widget _buildChoiceOption(String option, String correctAnswer) {
+    return _buildOptionContainer(
+      tapKey: option,
+      builder: (textColor, showWrong) => Row(
+        children: [
+          Expanded(
+            child: Text(
+              option,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: textColor),
             ),
-            if (showWrong)
-              const Icon(
-                Icons.cancel_rounded,
-                color: Color(0xFFE57373),
-                size: 22,
-              ),
-          ],
-        ),
+          ),
+          if (showWrong)
+            const Icon(Icons.cancel_rounded, color: Color(0xFFE57373), size: 22),
+        ],
       ),
     );
   }
 
   Widget _buildFractionChoiceOption(FractionValue f, String correctAnswer) {
-    final key = f.key;
-    final isSelected = _selectedChoice == key;
-    final showWrong = isSelected && _showWrongFeedback;
-
-    Color borderColor = const Color(0xFFDCD5CA);
-    Color bgColor = Colors.white;
-    Color textColor = AppColors.textMain;
-
-    if (showWrong) {
-      borderColor = const Color(0xFFE57373);
-      bgColor = const Color(0xFFFFF3F3);
-      textColor = const Color(0xFFE57373);
-    } else if (isSelected) {
-      borderColor = AppColors.primary;
-      bgColor = const Color(0xFFF0F8ED);
-      textColor = AppColors.primary;
-    }
-
-    return GestureDetector(
-      onTap: () => _onChoiceTap(key),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        margin: const EdgeInsets.only(bottom: 12),
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color:
-                        (showWrong
-                                ? const Color(0xFFE57373)
-                                : AppColors.primary)
-                            .withValues(alpha: 0.15),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          children: [
-            FractionWidget(
-              numerator: f.numerator,
-              denominator: f.denominator,
-              color: textColor,
-            ),
-            if (f.unit != null) ...[
-              const SizedBox(width: 4),
-              Text(
-                f.unit!,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
-              ),
-            ],
-            const Spacer(),
-            if (showWrong)
-              const Icon(
-                Icons.cancel_rounded,
-                color: Color(0xFFE57373),
-                size: 22,
-              ),
+    return _buildOptionContainer(
+      tapKey: f.key,
+      builder: (textColor, showWrong) => Row(
+        children: [
+          FractionWidget(numerator: f.numerator, denominator: f.denominator, color: textColor),
+          if (f.unit != null) ...[
+            const SizedBox(width: 4),
+            Text(f.unit!, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: textColor)),
           ],
-        ),
+          const Spacer(),
+          if (showWrong)
+            const Icon(Icons.cancel_rounded, color: Color(0xFFE57373), size: 22),
+        ],
       ),
     );
   }

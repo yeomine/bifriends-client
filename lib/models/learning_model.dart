@@ -58,6 +58,33 @@ String _spansToString(List<RichSpan> spans) => spans.map((s) {
       return '${f.numerator}/${f.denominator}';
     }).join('');
 
+({FractionValue? fractionAnswer, String? answer}) _parseAnswer(dynamic raw) {
+  if (raw is Map<String, dynamic>) {
+    final frac = FractionValue.fromJson(raw);
+    return (fractionAnswer: frac, answer: frac.key);
+  }
+  if (raw != null) return (fractionAnswer: null, answer: raw as String);
+  return (fractionAnswer: null, answer: null);
+}
+
+({List<List<RichSpan>>? richHints, List<String> hints}) _parseHints(dynamic raw) {
+  final list = (raw as List?) ?? [];
+  if (list.isNotEmpty && list.first is List) {
+    final rich = list.map<List<RichSpan>>(_parseSpans).toList();
+    return (richHints: rich, hints: rich.map(_spansToString).toList());
+  }
+  return (richHints: null, hints: list.cast<String>());
+}
+
+({List<RichSpan>? richExplanation, String? explanation}) _parseExplanation(dynamic raw) {
+  if (raw is List) {
+    final rich = _parseSpans(raw);
+    return (richExplanation: rich, explanation: _spansToString(rich));
+  }
+  if (raw != null) return (richExplanation: null, explanation: raw as String);
+  return (richExplanation: null, explanation: null);
+}
+
 // ── Learning models ───────────────────────────────────────────────────────────
 
 enum CycleType { concept, wordCard, choice, shortAnswer }
@@ -125,67 +152,33 @@ class ChoiceQuestion {
       richExplanation ?? [PlainSpan(explanation ?? '')];
 
   factory ChoiceQuestion.fromJson(Map<String, dynamic> json) {
-    // Question text (may be a List of segments in grade 6 format)
     final rich = _parseSpans(json['text'] ?? json['question_text'] ?? json['question'] ?? '');
 
-    // Options: List<String> (grade 3) or List<{display, numerator, ...}> (grade 6)
     final rawOptions = (json['options'] as List?) ?? [];
     List<FractionValue>? fracOpts;
     List<String> strOpts;
     if (rawOptions.isNotEmpty && rawOptions.first is Map) {
-      fracOpts = rawOptions
-          .cast<Map<String, dynamic>>()
-          .map(FractionValue.fromJson)
-          .toList();
+      fracOpts = rawOptions.cast<Map<String, dynamic>>().map(FractionValue.fromJson).toList();
       strOpts = fracOpts.map((f) => f.key).toList();
     } else {
       strOpts = rawOptions.cast<String>();
     }
 
-    // Answer: nullable — server strips it from API responses
-    final rawAnswer = json['answer'];
-    FractionValue? fracAns;
-    String? strAnswer;
-    if (rawAnswer is Map<String, dynamic>) {
-      fracAns = FractionValue.fromJson(rawAnswer);
-      strAnswer = fracAns.key;
-    } else if (rawAnswer != null) {
-      strAnswer = rawAnswer as String;
-    }
-
-    // Hints: List<String> (grade 3) or List<List<segment>> (grade 6)
-    final rawHints = json['hint'] as List? ?? json['hints'] as List? ?? [];
-    List<List<RichSpan>>? richH;
-    List<String> strH;
-    if (rawHints.isNotEmpty && rawHints.first is List) {
-      richH = rawHints.map((h) => _parseSpans(h)).toList();
-      strH = richH.map(_spansToString).toList();
-    } else {
-      strH = rawHints.cast<String>();
-    }
-
-    // Explanation: String (grade 3) or List<segment> (grade 6) or null (API response)
-    final rawExp = json['explanation'];
-    List<RichSpan>? richExp;
-    String? strExp;
-    if (rawExp is List) {
-      richExp = _parseSpans(rawExp);
-      strExp = _spansToString(richExp);
-    } else if (rawExp != null) {
-      strExp = rawExp as String;
-    }
+    final (:fractionAnswer, :answer) = _parseAnswer(json['answer']);
+    final (:richHints, :hints) = _parseHints(json['hint'] ?? json['hints']);
+    final (:richExplanation, :explanation) = _parseExplanation(json['explanation']);
 
     return ChoiceQuestion(
       questionText: _spansToString(rich),
       richQuestionText: rich,
       options: strOpts,
       fractionOptions: fracOpts,
-      answer: strAnswer,
-      fractionAnswer: fracAns,
-      hints: strH,
-      richHints: richH,
-      explanation: strExp,
-      richExplanation: richExp,
+      answer: answer,
+      fractionAnswer: fractionAnswer,
+      hints: hints,
+      richHints: richHints,
+      explanation: explanation,
+      richExplanation: richExplanation,
       difficulty: json['difficulty'] as int? ?? 1,
     );
   }
@@ -220,50 +213,34 @@ class ShortAnswerQuestion {
 
   factory ShortAnswerQuestion.fromJson(Map<String, dynamic> json) {
     final rich = _parseSpans(json['text'] ?? json['question_text'] ?? json['question'] ?? '');
-
-    final rawAnswer = json['answer'];
-    FractionValue? fracAns;
-    String? strAnswer;
-    if (rawAnswer is Map<String, dynamic>) {
-      fracAns = FractionValue.fromJson(rawAnswer);
-      strAnswer = fracAns.key;
-    } else if (rawAnswer != null) {
-      strAnswer = rawAnswer as String;
-    }
-
-    final rawHints = json['hint'] as List? ?? json['hints'] as List? ?? [];
-    List<List<RichSpan>>? richH;
-    List<String> strH;
-    if (rawHints.isNotEmpty && rawHints.first is List) {
-      richH = rawHints.map((h) => _parseSpans(h)).toList();
-      strH = richH.map(_spansToString).toList();
-    } else {
-      strH = rawHints.cast<String>();
-    }
-
-    final rawExp = json['explanation'];
-    List<RichSpan>? richExp;
-    String? strExp;
-    if (rawExp is List) {
-      richExp = _parseSpans(rawExp);
-      strExp = _spansToString(richExp);
-    } else if (rawExp != null) {
-      strExp = rawExp as String;
-    }
+    final (:fractionAnswer, :answer) = _parseAnswer(json['answer']);
+    final (:richHints, :hints) = _parseHints(json['hint'] ?? json['hints']);
+    final (:richExplanation, :explanation) = _parseExplanation(json['explanation']);
 
     return ShortAnswerQuestion(
       questionText: _spansToString(rich),
       richQuestionText: rich,
-      answer: strAnswer,
-      fractionAnswer: fracAns,
-      hints: strH,
-      richHints: richH,
-      explanation: strExp,
-      richExplanation: richExp,
+      answer: answer,
+      fractionAnswer: fractionAnswer,
+      hints: hints,
+      richHints: richHints,
+      explanation: explanation,
+      richExplanation: richExplanation,
       difficulty: json['difficulty'] as int? ?? 1,
     );
   }
 }
+
+const _cycleTypeMap = <String, CycleType>{
+  'concept': CycleType.concept,
+  'word_card': CycleType.wordCard,
+  'choice': CycleType.choice,
+  'short_answer': CycleType.shortAnswer,
+  'fact_check': CycleType.choice,
+  'inference': CycleType.choice,
+  'diagram_order': CycleType.choice,
+  'summary_fill': CycleType.choice,
+};
 
 class LearningCycle {
   final String cycleId;
@@ -287,34 +264,8 @@ class LearningCycle {
       0;
 
   factory LearningCycle.fromJson(Map<String, dynamic> json) {
-    final CycleType type;
-    // 'cycle_type' (수학) 또는 'type' (국어) 둘 다 허용
-    final typeStr = json['cycle_type'] as String? ?? json['type'] as String? ?? 'concept';
-    switch (typeStr) {
-      case 'concept':
-        type = CycleType.concept;
-        break;
-      case 'word_card':
-        type = CycleType.wordCard;
-        break;
-      case 'choice':
-        type = CycleType.choice;
-        break;
-      case 'short_answer':
-        type = CycleType.shortAnswer;
-        break;
-      // 국어 전용 타입
-      case 'fact_check':
-      case 'inference':
-      case 'diagram_order':
-        type = CycleType.choice;
-        break;
-      case 'summary_fill':
-        type = CycleType.choice;
-        break;
-      default:
-        type = CycleType.concept;
-    }
+    final typeStr = json['cycle_type'] as String? ?? json['type'] as String? ?? '';
+    final type = _cycleTypeMap[typeStr] ?? CycleType.concept;
     // 'cycle_id' → 'cycle_number' (수학) → 'cycle' (국어) 순서로 탐색
     final cycleId = json['cycle_id'] as String? ??
         'cycle_${json['cycle_number'] ?? json['cycle']}';
