@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../models/learning_model.dart';
+import '../services/korean_learning_service.dart';
 import '../services/math_learning_service.dart';
 import '../widgets/learning_roadmap.dart' show LevelData;
 import '../widgets/rich_inline_text.dart';
@@ -39,8 +40,10 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
   late TextEditingController _denominatorController;
 
   final MathLearningService _mathService = MathLearningService();
+  final KoreanLearningService _koreanService = KoreanLearningService();
 
   bool _useApiValidation = false;
+  Passage? _passage;
 
   @override
   void initState() {
@@ -55,19 +58,31 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
 
   Future<void> _loadContent() async {
     LearningStep step;
-    if (widget.subject == 'math' && widget.levelData.stepId > 0) {
+    if (widget.levelData.stepId > 0) {
       try {
-        final content =
-            await _mathService.getStepContent(widget.levelData.stepId);
+        final content = widget.subject == 'korean'
+            ? await _koreanService.getStepContent(widget.levelData.stepId)
+            : await _mathService.getStepContent(widget.levelData.stepId);
         step = LearningStep(
           stepId: content.stepId.toString(),
           stepTitle: content.stepTitle,
           stepDescription: content.concept,
           cycles: content.cycles,
         );
+        _passage = content.passage;
         _useApiValidation = true;
-      } catch (_) {
-        step = mockStepForLevel(widget.levelData.level);
+        debugPrint('[Content] 로드 성공: ${content.cycles.length}개 사이클');
+        for (final c in content.cycles) {
+          debugPrint(
+            '[Content]  ${c.cycleId} type=${c.type} slides=${c.slides?.length ?? 'null'}',
+          );
+        }
+      } catch (e, st) {
+        debugPrint('[Content] 파싱 실패: $e');
+        debugPrint('[Content] $st');
+        step = widget.subject == 'korean'
+            ? mockKoreanStepForLevel(widget.levelData.level)
+            : mockStepForLevel(widget.levelData.level);
         _useApiValidation = false;
       }
     } else {
@@ -79,8 +94,10 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
     if (!mounted) return;
     setState(() {
       _step = step;
-      _currentCycleIdx =
-          (widget.initialStep - 1).clamp(0, step.cycles.length - 1);
+      _currentCycleIdx = (widget.initialStep - 1).clamp(
+        0,
+        step.cycles.length - 1,
+      );
       _contentLoading = false;
     });
   }
@@ -102,6 +119,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
   bool get _isCurrentAnswerCorrectLocal {
     switch (_currentCycle.type) {
       case CycleType.concept:
+      case CycleType.wordCard:
         return true;
       case CycleType.choice:
         final q = _currentCycle.choiceQuestions![_currentQuestionIdx];
@@ -122,6 +140,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
     if (_isValidating) return false;
     switch (_currentCycle.type) {
       case CycleType.concept:
+      case CycleType.wordCard:
         return true;
       case CycleType.choice:
         return _selectedChoice != null;
@@ -156,7 +175,8 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
     if (!_canProceed) return;
     FocusScope.of(context).unfocus();
 
-    if (_currentCycle.type == CycleType.concept) {
+    if (_currentCycle.type == CycleType.concept ||
+        _currentCycle.type == CycleType.wordCard) {
       _advanceContent();
       return;
     }
@@ -203,12 +223,19 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
         }
       }
 
-      final result = await _mathService.validateAnswer(
-        stepId: widget.levelData.stepId,
-        cycleNumber: _currentCycleIdx + 1,
-        questionIndex: _currentQuestionIdx,
-        answer: answer,
-      );
+      final result = widget.subject == 'korean'
+          ? await _koreanService.validateAnswer(
+              stepId: widget.levelData.stepId,
+              cycleNumber: _currentCycleIdx + 1,
+              questionIndex: _currentQuestionIdx,
+              answer: answer as String,
+            )
+          : await _mathService.validateAnswer(
+              stepId: widget.levelData.stepId,
+              cycleNumber: _currentCycleIdx + 1,
+              questionIndex: _currentQuestionIdx,
+              answer: answer,
+            );
 
       if (!mounted) return;
       setState(() => _isValidating = false);
@@ -243,16 +270,30 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
   }
 
   Future<void> _completeCycleAndShow() async {
+    debugPrint(
+      '[Complete] useApi=$_useApiValidation, '
+      'isLastCycle=$_isLastCycle, cycleIdx=$_currentCycleIdx, '
+      'totalCycles=$_totalCycles',
+    );
     if (_useApiValidation) {
       try {
-        final cycleResult = await _mathService.completeCycle(
-          stepId: widget.levelData.stepId,
-          cycleNumber: _currentCycleIdx + 1,
-        );
+        final cycleResult = widget.subject == 'korean'
+            ? await _koreanService.completeCycle(
+                stepId: widget.levelData.stepId,
+                cycleNumber: _currentCycleIdx + 1,
+              )
+            : await _mathService.completeCycle(
+                stepId: widget.levelData.stepId,
+                cycleNumber: _currentCycleIdx + 1,
+              );
         if (_isLastCycle && cycleResult.isStepCompleted) {
-          await _mathService.completeStep(widget.levelData.stepId);
+          widget.subject == 'korean'
+              ? await _koreanService.completeStep(widget.levelData.stepId)
+              : await _mathService.completeStep(widget.levelData.stepId);
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[Complete] 에러: $e');
+      }
     }
     widget.onStepCompleted?.call();
     if (mounted) {
@@ -266,9 +307,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
   @override
   Widget build(BuildContext context) {
     if (_contentLoading || _step == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -357,6 +396,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
   Widget _buildCycleContent({required Key key}) {
     switch (_currentCycle.type) {
       case CycleType.concept:
+      case CycleType.wordCard:
         return _buildConceptSlide(key: key);
       case CycleType.choice:
         return _buildChoiceQuestion(key: key);
@@ -369,7 +409,9 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
 
   Widget _buildConceptSlide({required Key key}) {
     final slide = _currentCycle.slides![_currentQuestionIdx];
-    final conceptLabel = widget.subject == 'korean' ? '낱말 카드' : '개념 이야기';
+    final conceptLabel = _currentCycle.type == CycleType.wordCard
+        ? '낱말 카드'
+        : '개념 이야기';
 
     return SingleChildScrollView(
       key: key,
@@ -434,6 +476,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _buildPassagePanel(),
           _buildQuestionLabel('문제 풀기'),
           const SizedBox(height: 20),
           Container(
@@ -629,8 +672,9 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
 
   String? _extractUnit(String questionText) {
     if (questionText.contains('얼마')) return '원';
-    final match = RegExp(r'몇\s+(\S+?)(?:일까요|인가요|이에요|일까|인가)')
-        .firstMatch(questionText);
+    final match = RegExp(
+      r'몇\s+(\S+?)(?:일까요|인가요|이에요|일까|인가)',
+    ).firstMatch(questionText);
     return match?.group(1);
   }
 
@@ -644,6 +688,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _buildPassagePanel(),
           _buildQuestionLabel('직접 써보기'),
           const SizedBox(height: 20),
           Container(
@@ -686,6 +731,46 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
   }
 
   // ── Shared helpers ────────────────────────────────────────────────────────
+
+  Widget _buildPassagePanel() {
+    final p = _passage;
+    if (p == null) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F0E8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDCD5CA)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (p.title != null) ...[
+            Text(
+              p.title!,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 6),
+          ],
+          Text(
+            p.text,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textMain,
+              height: 1.6,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildQuestionLabel(String label) {
     return Container(

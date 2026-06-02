@@ -60,7 +60,7 @@ String _spansToString(List<RichSpan> spans) => spans.map((s) {
 
 // ── Learning models ───────────────────────────────────────────────────────────
 
-enum CycleType { concept, choice, shortAnswer }
+enum CycleType { concept, wordCard, choice, shortAnswer }
 
 class ConceptSlide {
   final String image;
@@ -79,12 +79,14 @@ class ConceptSlide {
   List<RichSpan> get spans => richText ?? [PlainSpan(text)];
 
   factory ConceptSlide.fromJson(Map<String, dynamic> json) {
-    final rich = _parseSpans(json['text']);
+    // 'description' (국어 word_card) 또는 'text' (수학 concept) 둘 다 허용
+    final raw = json['description'] ?? json['text'];
+    final rich = _parseSpans(raw ?? '');
     return ConceptSlide(
-      image: json['image'] as String,
+      image: json['image'] as String? ?? '',
       text: _spansToString(rich),
       richText: rich,
-      confirmButtonText: json['confirm_button_text'] as String,
+      confirmButtonText: json['confirm_button_text'] as String? ?? '다음',
     );
   }
 }
@@ -127,7 +129,7 @@ class ChoiceQuestion {
     final rich = _parseSpans(json['text'] ?? json['question_text'] ?? '');
 
     // Options: List<String> (grade 3) or List<{display, numerator, ...}> (grade 6)
-    final rawOptions = json['options'] as List;
+    final rawOptions = (json['options'] as List?) ?? [];
     List<FractionValue>? fracOpts;
     List<String> strOpts;
     if (rawOptions.isNotEmpty && rawOptions.first is Map) {
@@ -286,9 +288,14 @@ class LearningCycle {
 
   factory LearningCycle.fromJson(Map<String, dynamic> json) {
     final CycleType type;
-    switch (json['cycle_type'] as String) {
+    // 'cycle_type' (수학) 또는 'type' (국어) 둘 다 허용
+    final typeStr = json['cycle_type'] as String? ?? json['type'] as String? ?? 'concept';
+    switch (typeStr) {
       case 'concept':
         type = CycleType.concept;
+        break;
+      case 'word_card':
+        type = CycleType.wordCard;
         break;
       case 'choice':
         type = CycleType.choice;
@@ -296,17 +303,28 @@ class LearningCycle {
       case 'short_answer':
         type = CycleType.shortAnswer;
         break;
+      // 국어 전용 타입
+      case 'fact_check':
+      case 'inference':
+      case 'diagram_order':
+        type = CycleType.choice;
+        break;
+      case 'summary_fill':
+        type = CycleType.choice;
+        break;
       default:
         type = CycleType.concept;
     }
-    // Support both 'cycle_id' (grade 3) and 'cycle_number' (grade 6) formats
+    // 'cycle_id' → 'cycle_number' (수학) → 'cycle' (국어) 순서로 탐색
     final cycleId = json['cycle_id'] as String? ??
-        'cycle_${json['cycle_number']}';
+        'cycle_${json['cycle_number'] ?? json['cycle']}';
+    final isSlideType =
+        type == CycleType.concept || type == CycleType.wordCard;
     return LearningCycle(
       cycleId: cycleId,
       type: type,
-      slides: type == CycleType.concept
-          ? (json['slides'] as List)
+      slides: isSlideType
+          ? (json['slides'] as List? ?? [])
               .map((s) => ConceptSlide.fromJson(s as Map<String, dynamic>))
               .toList()
           : null,
@@ -411,11 +429,26 @@ class RoadmapResponse {
   }
 }
 
+class Passage {
+  final String? title;
+  final String text;
+  final String? image;
+
+  const Passage({this.title, required this.text, this.image});
+
+  factory Passage.fromJson(Map<String, dynamic> json) => Passage(
+        title: json['title'] as String?,
+        text: json['text'] as String? ?? '',
+        image: json['image'] as String?,
+      );
+}
+
 class StepContentResponse {
   final int stepId;
   final String stepTitle;
   final String concept;
   final int grade;
+  final Passage? passage;
   final List<LearningCycle> cycles;
 
   const StepContentResponse({
@@ -423,15 +456,18 @@ class StepContentResponse {
     required this.stepTitle,
     required this.concept,
     required this.grade,
+    this.passage,
     required this.cycles,
   });
 
   factory StepContentResponse.fromJson(Map<String, dynamic> json) {
+    final rawPassage = json['passage'] as Map<String, dynamic>?;
     return StepContentResponse(
       stepId: json['stepId'] as int,
       stepTitle: json['stepTitle'] as String,
       concept: json['concept'] as String,
       grade: json['grade'] as int,
+      passage: rawPassage != null ? Passage.fromJson(rawPassage) : null,
       cycles: (json['cycles'] as List<dynamic>)
           .map((e) => LearningCycle.fromJson(e as Map<String, dynamic>))
           .toList(),

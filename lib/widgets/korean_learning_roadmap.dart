@@ -1,26 +1,11 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../models/learning_model.dart';
 import '../screens/learning_activity_screen.dart';
+import '../services/korean_learning_service.dart';
 import '../widgets/learning_roadmap.dart'
     show LevelData, LevelStatus, RoadmapPainter;
 import '../theme/app_colors.dart';
-
-class _LevelDef {
-  final int level;
-  final String cardTitle;
-  final String name;
-  final String subtitle;
-  const _LevelDef(this.level, this.cardTitle, this.name, this.subtitle);
-}
-
-const List<_LevelDef> _koreanLevelDefs = [
-  _LevelDef(1, 'STEP 1', '비 오는 날', '감각적 표현을 배워요'),
-  _LevelDef(2, 'STEP 2', '친구의 선물', '마음을 전하는 글을 읽어요'),
-  _LevelDef(3, 'STEP 3', '바닷가에서', '장소를 나타내는 말을 배워요'),
-  _LevelDef(4, 'STEP 4', '봄이 왔어요', '계절과 자연을 느껴봐요'),
-  _LevelDef(5, 'STEP 5', '우리 마을', '우리 주변을 이야기로 써봐요'),
-];
 
 const int _cyclesPerLevel = 5;
 
@@ -32,9 +17,10 @@ class KoreanLearningRoadmap extends StatefulWidget {
 }
 
 class _KoreanLearningRoadmapState extends State<KoreanLearningRoadmap> {
-  Map<int, int> _completedCycles = {};
+  List<StepSummaryResponse> _steps = [];
   bool _loaded = false;
   final ScrollController _scrollController = ScrollController();
+  final KoreanLearningService _service = KoreanLearningService();
 
   @override
   void initState() {
@@ -49,27 +35,20 @@ class _KoreanLearningRoadmapState extends State<KoreanLearningRoadmap> {
   }
 
   Future<void> _loadProgress() async {
-    final prefs = await SharedPreferences.getInstance();
-    final Map<int, int> cycles = {};
-    for (final def in _koreanLevelDefs) {
-      cycles[def.level] = prefs.getInt('korean_level_${def.level}_cycles') ?? 0;
+    try {
+      final roadmap = await _service.getRoadmap();
+      if (!mounted) return;
+      setState(() {
+        _steps = roadmap.steps;
+        _loaded = true;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loaded = true);
     }
-    if (!mounted) return;
-    setState(() {
-      _completedCycles = cycles;
-      _loaded = true;
-    });
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _scrollToCurrentLevel(),
     );
-  }
-
-  Future<void> _markCycleCompleted(int level) async {
-    if (!mounted) return;
-    final next = (_completedCycles[level] ?? 0) + 1;
-    setState(() => _completedCycles[level] = next);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('korean_level_${level}_cycles', next);
   }
 
   void _scrollToCurrentLevel() {
@@ -90,22 +69,28 @@ class _KoreanLearningRoadmapState extends State<KoreanLearningRoadmap> {
     );
   }
 
-  bool _isLevelComplete(int level) =>
-      (_completedCycles[level] ?? 0) >= _cyclesPerLevel;
-
-  LevelStatus _statusFor(int level) {
-    if (_isLevelComplete(level)) return LevelStatus.completed;
-    if (level == 1 || _isLevelComplete(level - 1)) return LevelStatus.current;
-    return LevelStatus.locked;
+  LevelStatus _levelStatusFrom(StepStatus status) {
+    switch (status) {
+      case StepStatus.COMPLETED:
+        return LevelStatus.completed;
+      case StepStatus.IN_PROGRESS:
+      case StepStatus.AVAILABLE:
+        return LevelStatus.current;
+      case StepStatus.LOCKED:
+        return LevelStatus.locked;
+    }
   }
 
-  List<LevelData> get _levelDatas => _koreanLevelDefs
+  List<LevelData> get _levelDatas => _steps
       .map(
-        (d) => LevelData(
-          level: d.level,
-          title: d.cardTitle,
-          description: d.name,
-          status: _statusFor(d.level),
+        (s) => LevelData(
+          level: s.stepNumber,
+          stepId: s.stepId,
+          title: 'STEP ${s.stepNumber}',
+          description: s.stepTitle,
+          subtitle: s.concept,
+          status: _levelStatusFrom(s.status),
+          completedCycles: s.completedCycles,
         ),
       )
       .toList();
@@ -116,6 +101,23 @@ class _KoreanLearningRoadmapState extends State<KoreanLearningRoadmap> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final levelDatas = _levelDatas;
+
+    if (levelDatas.isEmpty) {
+      return const Center(
+        child: Text(
+          '로드맵을 불러올 수 없어요 😢\n잠시 후 다시 시도해줘!',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSub,
+            height: 1.6,
+          ),
+        ),
+      );
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final sw = constraints.maxWidth;
@@ -123,17 +125,15 @@ class _KoreanLearningRoadmapState extends State<KoreanLearningRoadmap> {
         const circleAreaSize = 130.0;
         const gap = 14.0;
         final cardWidth = (sw * 0.7 - 80).clamp(130.0, 185.0);
-        final totalHeight = _koreanLevelDefs.length * nodeHeight + 80.0;
+        final totalHeight = levelDatas.length * nodeHeight + 80.0;
 
         final centers = <Offset>[];
-        for (int i = 0; i < _koreanLevelDefs.length; i++) {
+        for (int i = 0; i < levelDatas.length; i++) {
           final isLeft = i % 2 == 0;
           final x = isLeft ? sw * 0.30 : sw * 0.70;
           final y = 60.0 + i * nodeHeight;
           centers.add(Offset(x, y));
         }
-
-        final levelDatas = _levelDatas;
 
         return SingleChildScrollView(
           controller: _scrollController,
@@ -152,7 +152,7 @@ class _KoreanLearningRoadmapState extends State<KoreanLearningRoadmap> {
                     ),
                   ),
                 ),
-                for (int i = 0; i < _koreanLevelDefs.length; i++)
+                for (int i = 0; i < levelDatas.length; i++)
                   Positioned(
                     left: (i % 2 == 0)
                         ? centers[i].dx - circleAreaSize / 2
@@ -160,7 +160,6 @@ class _KoreanLearningRoadmapState extends State<KoreanLearningRoadmap> {
                     top: centers[i].dy - circleAreaSize / 2,
                     child: _buildNodeRow(
                       levelDatas[i],
-                      def: _koreanLevelDefs[i],
                       isLeft: i % 2 == 0,
                       cardWidth: cardWidth,
                       gap: gap,
@@ -176,35 +175,32 @@ class _KoreanLearningRoadmapState extends State<KoreanLearningRoadmap> {
 
   Widget _buildNodeRow(
     LevelData level, {
-    required _LevelDef def,
     required bool isLeft,
     required double cardWidth,
     required double gap,
   }) {
     final isLocked = level.status == LevelStatus.locked;
     final circleWidget = _buildCircleWithDots(level);
-    final cardWidget = SizedBox(
-      width: cardWidth,
-      child: _buildCard(level, def: def),
-    );
+    final cardWidget = SizedBox(width: cardWidth, child: _buildCard(level));
 
     return GestureDetector(
       onTap: isLocked
           ? null
-          : () {
-              final completedCycles = _completedCycles[level.level] ?? 0;
-              final initialStep = _isLevelComplete(level.level)
+          : () async {
+              final isComplete = level.status == LevelStatus.completed;
+              final initialStep = isComplete
                   ? 1
-                  : (completedCycles + 1).clamp(1, 5);
-              Navigator.push(
+                  : (level.completedCycles.length + 1)
+                      .clamp(1, _cyclesPerLevel);
+              await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => LearningActivityScreen(
                     levelData: level,
                     initialStep: initialStep,
                     subject: 'korean',
-                    onStepCompleted: level.status == LevelStatus.current
-                        ? () => _markCycleCompleted(level.level)
+                    onStepCompleted: level.status != LevelStatus.locked
+                        ? _loadProgress
                         : null,
                   ),
                 ),
@@ -231,8 +227,8 @@ class _KoreanLearningRoadmapState extends State<KoreanLearningRoadmap> {
         color: isFilled
             ? AppColors.primary
             : isLocked
-            ? const Color(0xFFDCD5CA)
-            : Colors.white,
+                ? const Color(0xFFDCD5CA)
+                : Colors.white,
         border: (!isFilled && !isLocked)
             ? Border.all(
                 color: AppColors.primary.withValues(alpha: 0.4),
@@ -248,9 +244,8 @@ class _KoreanLearningRoadmapState extends State<KoreanLearningRoadmap> {
     final isCurrent = level.status == LevelStatus.current;
     final isLocked = level.status == LevelStatus.locked;
 
-    final filledCount = isCompleted
-        ? _cyclesPerLevel
-        : (_completedCycles[level.level] ?? 0);
+    final filledCount =
+        isCompleted ? _cyclesPerLevel : level.completedCycles.length;
 
     final Color borderColor = isCompleted || isCurrent
         ? AppColors.primary
@@ -258,8 +253,8 @@ class _KoreanLearningRoadmapState extends State<KoreanLearningRoadmap> {
     final Color bgColor = isCompleted
         ? const Color(0xFFF0F8ED)
         : isCurrent
-        ? Colors.white
-        : const Color(0xFFF9F7F3);
+            ? Colors.white
+            : const Color(0xFFF9F7F3);
 
     const containerSize = 130.0;
     const circleSize = 80.0;
@@ -316,22 +311,13 @@ class _KoreanLearningRoadmapState extends State<KoreanLearningRoadmap> {
               ),
               child: Center(
                 child: isCompleted
-                    ? const Icon(
-                        Icons.check_rounded,
-                        color: AppColors.primary,
-                        size: 38,
-                      )
+                    ? const Icon(Icons.check_rounded,
+                        color: AppColors.primary, size: 38)
                     : isCurrent
-                    ? const Icon(
-                        Icons.eco_rounded,
-                        color: AppColors.primary,
-                        size: 36,
-                      )
-                    : Icon(
-                        Icons.lock_outline_rounded,
-                        color: Colors.grey.shade400,
-                        size: 28,
-                      ),
+                        ? const Icon(Icons.eco_rounded,
+                            color: AppColors.primary, size: 36)
+                        : Icon(Icons.lock_outline_rounded,
+                            color: Colors.grey.shade400, size: 28),
               ),
             ),
           ),
@@ -341,7 +327,7 @@ class _KoreanLearningRoadmapState extends State<KoreanLearningRoadmap> {
     );
   }
 
-  Widget _buildCard(LevelData level, {required _LevelDef def}) {
+  Widget _buildCard(LevelData level) {
     final isLocked = level.status == LevelStatus.locked;
     final labelColor = isLocked ? AppColors.textSub : AppColors.primary;
     final titleColor = isLocked ? AppColors.textSub : AppColors.textMain;
@@ -366,31 +352,26 @@ class _KoreanLearningRoadmapState extends State<KoreanLearningRoadmap> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            def.cardTitle,
+            level.title,
             style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: labelColor,
-            ),
+                fontSize: 11, fontWeight: FontWeight.w800, color: labelColor),
           ),
           const SizedBox(height: 3),
           Text(
-            def.name,
+            level.description,
             style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: titleColor,
-            ),
+                fontSize: 15, fontWeight: FontWeight.w800, color: titleColor),
           ),
-          const SizedBox(height: 2),
-          Text(
-            def.subtitle,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSub,
+          if (level.subtitle.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              level.subtitle,
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSub),
             ),
-          ),
+          ],
         ],
       ),
     );
