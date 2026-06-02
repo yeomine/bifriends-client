@@ -195,7 +195,7 @@ class _ClosetScreenState extends State<ClosetScreen> {
         onPressed: () => Navigator.pop(context),
       ),
       title: const Text(
-        '리오 꾸미기',
+        '레오 꾸미기',
         style: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w800,
@@ -252,7 +252,7 @@ class _ClosetScreenState extends State<ClosetScreen> {
           const Positioned(
             bottom: 4,
             child: Text(
-              '리오를 예쁘게 꾸며봐!',
+              '레오를 예쁘게 꾸며봐!',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
