@@ -197,13 +197,36 @@ class _ConversationScreenState extends State<ConversationScreen> {
     return (code - 0xAC00) % 28 == 0 ? '야' : '아';
   }
 
+  // ── 공통 헬퍼 ─────────────────────────────────────────────────────────────
+
+  static const _leoBubbleDecoration = BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.only(
+      topLeft: Radius.circular(18),
+      topRight: Radius.circular(18),
+      bottomLeft: Radius.circular(4),
+      bottomRight: Radius.circular(18),
+    ),
+    boxShadow: [
+      BoxShadow(color: Color(0x0D000000), blurRadius: 8, offset: Offset(0, 2)),
+    ],
+  );
+
+  void _closeHistoryPanel() {
+    _isHistoryOpen = false;
+    _isSessionsExpanded = false;
+  }
+
+  void _pushScreen(Widget screen) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  }
+
   Future<void> _loadSessionMessages(String sessionId) async {
     setState(() {
       _activeSessionId = sessionId;
       _messages = [];
       _isLeoTyping = false;
-      _isHistoryOpen = false;
-      _isSessionsExpanded = false;
+      _closeHistoryPanel();
     });
     try {
       final messages = await _chatService.getSessionMessages(sessionId);
@@ -226,7 +249,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
         ),
         if (_isHistoryOpen)
           GestureDetector(
-            onTap: () => setState(() => _isHistoryOpen = false),
+            onTap: () => setState(_closeHistoryPanel),
             child: Container(color: Colors.black.withValues(alpha: 0.4)),
           ),
         AnimatedPositioned(
@@ -325,29 +348,11 @@ class _ConversationScreenState extends State<ConversationScreen> {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(18),
-            topRight: Radius.circular(18),
-            bottomLeft: Radius.circular(4),
-            bottomRight: Radius.circular(18),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+        decoration: _leoBubbleDecoration,
         child: const SizedBox(
           width: 24,
           height: 16,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: AppColors.primary,
-          ),
+          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
         ),
       ),
     );
@@ -421,27 +426,23 @@ class _ConversationScreenState extends State<ConversationScreen> {
     final bubble = Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.7,
-        ),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isUser ? AppColors.textMain : Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(18),
-            topRight: const Radius.circular(18),
-            bottomLeft: Radius.circular(isUser ? 18 : 4),
-            bottomRight: Radius.circular(isUser ? 4 : 18),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+        decoration: isUser
+            ? const BoxDecoration(
+                color: AppColors.textMain,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(18),
+                  topRight: Radius.circular(18),
+                  bottomLeft: Radius.circular(18),
+                  bottomRight: Radius.circular(4),
+                ),
+                boxShadow: [
+                  BoxShadow(color: Color(0x0D000000), blurRadius: 8, offset: Offset(0, 2)),
+                ],
+              )
+            : _leoBubbleDecoration,
         child: Text(
           msg.content,
           style: TextStyle(
@@ -499,40 +500,30 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
   void _handleCtaTap(CtaAction cta) {
     if (cta.type == 'navigate_to_step') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => LearningActivityScreen(
-            levelData: LevelData(
-              level: cta.stepId ?? 1,
-              stepId: cta.stepId ?? 1,
-              title: cta.label,
-              description: '',
-              subtitle: '',
-              status: LevelStatus.current,
-              completedCycles: const [],
-            ),
-            initialStep: cta.cycleNumber ?? 1,
-            subject: cta.subject,
-          ),
+      _pushScreen(LearningActivityScreen(
+        levelData: LevelData(
+          level: cta.stepId ?? 1,
+          stepId: cta.stepId ?? 1,
+          title: cta.label,
+          description: '',
+          subtitle: '',
+          status: LevelStatus.current,
+          completedCycles: const [],
         ),
-      );
+        initialStep: cta.cycleNumber ?? 1,
+        subject: cta.subject,
+      ));
     } else if (cta.type == 'navigate_to_subject') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => Scaffold(
-            appBar: AppBar(
-              title: const Text('국어 공부방'),
-              backgroundColor: AppColors.background,
-              foregroundColor: AppColors.textMain,
-              elevation: 0,
-            ),
-            backgroundColor: AppColors.background,
-            body: const KoreanLearningRoadmap(),
-          ),
+      _pushScreen(Scaffold(
+        appBar: AppBar(
+          title: const Text('국어 공부방'),
+          backgroundColor: AppColors.background,
+          foregroundColor: AppColors.textMain,
+          elevation: 0,
         ),
-      );
+        backgroundColor: AppColors.background,
+        body: const KoreanLearningRoadmap(),
+      ));
     }
   }
 
@@ -670,10 +661,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
                     color: AppColors.textMain,
                     size: 24,
                   ),
-                  onPressed: () => setState(() {
-                    _isHistoryOpen = false;
-                    _isSessionsExpanded = false;
-                  }),
+                  onPressed: () => setState(_closeHistoryPanel),
                 ),
                 const Text(
                   '대화 기록',
@@ -689,15 +677,12 @@ class _ConversationScreenState extends State<ConversationScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _sessionId = ChatService.generateSessionId();
-                    _messages = [];
-                    _isLeoTyping = false;
-                    _isHistoryOpen = false;
-                    _isSessionsExpanded = false;
-                  });
-                },
+                onPressed: () => setState(() {
+                  _sessionId = ChatService.generateSessionId();
+                  _messages = [];
+                  _isLeoTyping = false;
+                  _closeHistoryPanel();
+                }),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text(
                   '새로운 대화 시작',
