@@ -111,4 +111,31 @@ class AuthService {
   Future<String?> getAccessToken() async {
     return await _storage.read(key: 'accessToken');
   }
+
+  /// Firebase ID 토큰을 강제 갱신한 뒤 백엔드에서 새 accessToken을 발급받아 저장.
+  /// 성공 시 새 토큰 반환, 실패 시 null 반환.
+  Future<String?> refreshAccessToken() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return null;
+
+      final idToken = await user.getIdToken(true); // force refresh
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/members/auth/google'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'idToken': idToken}),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data =
+            jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        final newToken = data['accessToken'] as String;
+        await _storage.write(key: 'accessToken', value: newToken);
+        return newToken;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 }
