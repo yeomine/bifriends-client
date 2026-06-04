@@ -1,7 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/parent_service.dart';
 import 'onboarding_screen.dart';
 
 class ParentSetupScreen extends StatefulWidget {
@@ -13,26 +12,20 @@ class ParentSetupScreen extends StatefulWidget {
 
 class _ParentSetupScreenState extends State<ParentSetupScreen> {
   final PageController _pageController = PageController();
+  final _parentService = ParentService();
   int _currentStep = 0;
 
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
   String _pin = '';
   String _confirmPin = '';
   bool _pinError = false;
+  bool _isLoading = false;
 
   Future<void> _nextStep() async {
     if (_currentStep == 1 && _pin.length < 4) return;
     if (_currentStep == 2 && _confirmPin.length < 4) return;
 
     if (_currentStep == 2) {
-      if (_pin == _confirmPin) {
-        await _storage.write(key: 'parentPin', value: _pin);
-        debugPrint('[ParentSetup] PIN saved: $_pin');
-        _pageController.nextPage(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      } else {
+      if (_pin != _confirmPin) {
         setState(() {
           _pinError = true;
           _confirmPin = '';
@@ -43,6 +36,28 @@ class _ParentSetupScreenState extends State<ParentSetupScreen> {
             backgroundColor: Color(0xFFF07D4F),
           ),
         );
+        return;
+      }
+      setState(() => _isLoading = true);
+      try {
+        await _parentService.resetPassword(_pin, _confirmPin);
+        if (mounted) {
+          _pageController.nextPage(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('비밀번호 설정에 실패했어요. 다시 시도해 주세요.'),
+              backgroundColor: Color(0xFFF07D4F),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
       return;
     }
@@ -328,12 +343,12 @@ class _ParentSetupScreenState extends State<ParentSetupScreen> {
               ),
               _buildNumpadButton('0'),
               _buildNumpadAction(
-                label: buttonText,
-                color: currentPinLength == 4
+                label: _isLoading ? '...' : buttonText,
+                color: (currentPinLength == 4 && !_isLoading)
                     ? const Color(0xFF3D5A3C)
                     : const Color(0xFF8B9D8A),
                 textColor: Colors.white,
-                onTap: currentPinLength == 4 ? onActionPressed : null,
+                onTap: (currentPinLength == 4 && !_isLoading) ? onActionPressed : null,
               ),
             ],
           ),

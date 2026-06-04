@@ -3,12 +3,12 @@ import '../models/guardian_mission_model.dart';
 import '../theme/app_colors.dart';
 
 class GuardianMissionSheet extends StatelessWidget {
-  const GuardianMissionSheet({super.key});
+  final GuardianMission mission;
+
+  const GuardianMissionSheet({super.key, required this.mission});
 
   @override
   Widget build(BuildContext context) {
-    // TODO: BE 연동 시 GuardianMission.fromJson(response)으로 교체
-    final mission = GuardianMission.mock();
 
     return Container(
       decoration: const BoxDecoration(

@@ -1,79 +1,95 @@
 import 'package:flutter/material.dart';
 import '../services/parent_service.dart';
 import '../theme/app_colors.dart';
-import 'parent_dashboard_screen.dart';
-import 'parent_reset_screen.dart';
 
-class ParentModeAuthScreen extends StatefulWidget {
-  const ParentModeAuthScreen({super.key});
+class ParentResetScreen extends StatefulWidget {
+  const ParentResetScreen({super.key});
 
   @override
-  State<ParentModeAuthScreen> createState() => _ParentModeAuthScreenState();
+  State<ParentResetScreen> createState() => _ParentResetScreenState();
 }
 
-class _ParentModeAuthScreenState extends State<ParentModeAuthScreen> {
+class _ParentResetScreenState extends State<ParentResetScreen> {
   final _parentService = ParentService();
 
-  String _pin = '';
+  int _step = 0; // 0: 새 비밀번호 입력, 1: 확인
+  String _newPin = '';
+  String _confirmPin = '';
   bool _isError = false;
   bool _isLoading = false;
 
+  String get _currentPin => _step == 0 ? _newPin : _confirmPin;
+
   void _onNumTap(String value) {
-    if (_isLoading || _pin.length >= 4) return;
+    if (_isLoading) return;
+    final current = _currentPin;
+    if (current.length >= 4) return;
     setState(() {
-      _pin += value;
       _isError = false;
+      if (_step == 0) {
+        _newPin += value;
+      } else {
+        _confirmPin += value;
+      }
     });
-    if (_pin.length == 4) _verifyPin();
+    if (_currentPin.length == 4) _onPinComplete();
   }
 
   void _onDelete() {
-    if (_isLoading || _pin.isEmpty) return;
+    if (_isLoading) return;
     setState(() {
-      _pin = _pin.substring(0, _pin.length - 1);
       _isError = false;
+      if (_step == 0) {
+        if (_newPin.isNotEmpty) _newPin = _newPin.substring(0, _newPin.length - 1);
+      } else {
+        if (_confirmPin.isNotEmpty) {
+          _confirmPin = _confirmPin.substring(0, _confirmPin.length - 1);
+        }
+      }
     });
   }
 
-  Future<void> _verifyPin() async {
-    final enteredPin = _pin;
+  void _onPinComplete() {
+    if (_step == 0) {
+      setState(() {
+        _step = 1;
+        _confirmPin = '';
+      });
+    } else {
+      _confirmAndReset();
+    }
+  }
+
+  Future<void> _confirmAndReset() async {
+    if (_newPin != _confirmPin) {
+      setState(() {
+        _isError = true;
+        _confirmPin = '';
+      });
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
-      final verified = await _parentService.verifyPassword(enteredPin);
-      if (!mounted) return;
-      if (verified) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const ParentDashboardScreen()),
+      await _parentService.resetPassword(_newPin, _confirmPin);
+      if (mounted) {
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('비밀번호가 변경되었어요.')),
         );
-      } else {
-        setState(() {
-          _isError = true;
-          _pin = '';
-        });
       }
     } catch (_) {
       if (mounted) {
         setState(() {
           _isError = true;
-          _pin = '';
+          _confirmPin = '';
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('비밀번호 초기화에 실패했어요. 다시 시도해 주세요.')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _navigateToReset() async {
-    final result = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (context) => const ParentResetScreen()),
-    );
-    if (result == true && mounted) {
-      setState(() {
-        _pin = '';
-        _isError = false;
-      });
     }
   }
 
@@ -85,7 +101,7 @@ class _ParentModeAuthScreenState extends State<ParentModeAuthScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text(
-          'Parent Mode',
+          '비밀번호 초기화',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w700,
@@ -115,32 +131,8 @@ class _ParentModeAuthScreenState extends State<ParentModeAuthScreen> {
                 ),
               ),
             ],
-            if (_isLoading) ...[
-              const SizedBox(height: 14),
-              const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: AppColors.primary,
-                  strokeWidth: 2,
-                ),
-              ),
-            ],
             const Spacer(),
             _buildNumpad(),
-            const SizedBox(height: 20),
-            GestureDetector(
-              onTap: _navigateToReset,
-              child: const Text(
-                '비밀번호를 잊어버렸나요? (비밀번호 초기화)',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFFFF8A80),
-                  decoration: TextDecoration.underline,
-                  decorationColor: Color(0xFFFF8A80),
-                ),
-              ),
-            ),
             const SizedBox(height: 32),
           ],
         ),
@@ -158,25 +150,27 @@ class _ParentModeAuthScreenState extends State<ParentModeAuthScreen> {
             shape: BoxShape.circle,
           ),
           child: const Icon(
-            Icons.verified_user_outlined,
+            Icons.lock_reset_outlined,
             color: AppColors.primary,
             size: 44,
           ),
         ),
         const SizedBox(height: 20),
-        const Text(
-          '보호자 확인',
-          style: TextStyle(
+        Text(
+          _step == 0 ? '새 비밀번호 입력' : '한 번 더 입력해주세요',
+          style: const TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w800,
             color: Colors.white,
           ),
         ),
         const SizedBox(height: 10),
-        const Text(
-          '성장 리포트를 보기 위해\n비밀번호 4자리를 입력해주세요.',
+        Text(
+          _step == 0
+              ? '새로운 4자리 비밀번호를 입력해주세요.'
+              : '비밀번호가 맞는지 확인이 필요해요.',
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
             color: Colors.white60,
@@ -188,10 +182,11 @@ class _ParentModeAuthScreenState extends State<ParentModeAuthScreen> {
   }
 
   Widget _buildPinBoxes() {
+    final current = _currentPin;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(4, (index) {
-        final isFilled = index < _pin.length;
+        final isFilled = index < current.length;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           margin: const EdgeInsets.symmetric(horizontal: 8),
@@ -235,7 +230,20 @@ class _ParentModeAuthScreenState extends State<ParentModeAuthScreen> {
           const SizedBox(height: 12),
           Row(
             children: [
-              _buildActionButton('취소', onTap: () => Navigator.pop(context)),
+              _buildActionButton(
+                _step == 0 ? '취소' : '뒤로',
+                onTap: () {
+                  if (_step == 0) {
+                    Navigator.pop(context);
+                  } else {
+                    setState(() {
+                      _step = 0;
+                      _confirmPin = '';
+                      _isError = false;
+                    });
+                  }
+                },
+              ),
               _buildNumberButton('0'),
               _buildActionButton('지우기', onTap: _onDelete),
             ],
@@ -263,14 +271,23 @@ class _ParentModeAuthScreenState extends State<ParentModeAuthScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Center(
-              child: Text(
-                number,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Text(
+                      number,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
             ),
           ),
         ),
