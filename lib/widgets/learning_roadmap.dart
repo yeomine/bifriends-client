@@ -76,12 +76,13 @@ class _LearningRoadmapState extends State<LearningRoadmap> {
 
   void _scrollToCurrentLevel() {
     if (!_scrollController.hasClients) return;
-    const nodeHeight = 160.0;
+    const nodeHeight = 210.0;
+    const topPadding = 90.0;
     final currentIndex = _levelDatas.indexWhere(
       (l) => l.status == LevelStatus.current,
     );
     if (currentIndex <= 1) return;
-    final targetY = (currentIndex * nodeHeight - 80.0).clamp(
+    final targetY = (topPadding + currentIndex * nodeHeight - 80.0).clamp(
       0.0,
       _scrollController.position.maxScrollExtent,
     );
@@ -144,17 +145,19 @@ class _LearningRoadmapState extends State<LearningRoadmap> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final sw = constraints.maxWidth;
-        const nodeHeight = 190.0;
-        const circleAreaSize = 130.0;
+        const nodeHeight = 210.0;
+        const circleAreaSize = 150.0;
+        const topPadding = 90.0; // 원 상단 잘림 방지: circleAreaSize/2 + 여유
         const gap = 14.0;
-        final cardWidth = (sw * 0.7 - 80).clamp(130.0, 185.0);
-        final totalHeight = levelDatas.length * nodeHeight + 80.0;
+        // 화면 양끝 여백 확보: circleAreaSize/2(75) + gap(14) + margin(16) = 105
+        final cardWidth = (sw * 0.7 - 105).clamp(110.0, 162.0);
+        final totalHeight = levelDatas.length * nodeHeight + topPadding + 40.0;
 
         final centers = <Offset>[];
         for (int i = 0; i < levelDatas.length; i++) {
           final isLeft = i % 2 == 0;
           final x = isLeft ? sw * 0.30 : sw * 0.70;
-          final y = 60.0 + i * nodeHeight;
+          final y = topPadding + i * nodeHeight;
           centers.add(Offset(x, y));
         }
 
@@ -281,14 +284,14 @@ class _LearningRoadmapState extends State<LearningRoadmap> {
         ? Colors.white
         : const Color(0xFFF9F7F3);
 
-    // 130×130 container; 80×80 circle centered at (65, 65)
-    // 5 dots orbit at radius 55 — evenly spaced at 72° each, starting from top
-    const containerSize = 130.0;
-    const circleSize = 80.0;
+    // 150×150 container; 100×100 circle centered at (75, 75)
+    // 5 dots orbit at radius 65 — evenly spaced at 72° each, starting from top
+    const containerSize = 150.0;
+    const circleSize = 100.0;
     const circleInset = (containerSize - circleSize) / 2; // 25
-    const cx = containerSize / 2; // 65
-    const cy = containerSize / 2; // 65
-    const orbitRadius = 55.0;
+    const cx = containerSize / 2; // 75
+    const cy = containerSize / 2; // 75
+    const orbitRadius = 65.0;
     const dotSize = 12.0;
 
     final dotPositioned = <Widget>[
@@ -341,18 +344,18 @@ class _LearningRoadmapState extends State<LearningRoadmap> {
                     ? const Icon(
                         Icons.check_rounded,
                         color: AppColors.primary,
-                        size: 38,
+                        size: 46,
                       )
                     : isCurrent
                     ? const Icon(
                         Icons.eco_rounded,
                         color: AppColors.primary,
-                        size: 36,
+                        size: 44,
                       )
                     : Icon(
                         Icons.lock_outline_rounded,
                         color: Colors.grey.shade400,
-                        size: 28,
+                        size: 34,
                       ),
               ),
             ),
