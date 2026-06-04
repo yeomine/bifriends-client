@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/api_config.dart';
@@ -40,18 +41,35 @@ class MindService {
 
   Future<MindScenario> generateScenario(String emotion) async {
     final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/mind/scenario');
-    final response = await _withTokenRefresh(
-      (headers) => http.post(
-        url,
-        headers: headers,
-        body: jsonEncode({'emotion': emotion}),
-      ),
-    );
+    debugPrint('[MindService] generateScenario 요청 → emotion: $emotion, url: $url');
+
+    late http.Response response;
+    try {
+      response = await _withTokenRefresh(
+        (headers) => http.post(
+          url,
+          headers: headers,
+          body: jsonEncode({'emotion': emotion}),
+        ),
+      );
+    } catch (e) {
+      debugPrint('[MindService] generateScenario 네트워크 오류: $e');
+      rethrow;
+    }
+
+    debugPrint('[MindService] generateScenario 응답 status: ${response.statusCode}');
+    debugPrint('[MindService] generateScenario 응답 body: ${utf8.decode(response.bodyBytes)}');
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-      return MindScenario.fromJson(
-        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>,
-      );
+      try {
+        final json = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        final scenario = MindScenario.fromJson(json);
+        debugPrint('[MindService] generateScenario 파싱 성공 → setId: ${scenario.setId}');
+        return scenario;
+      } catch (e) {
+        debugPrint('[MindService] generateScenario 파싱 오류: $e');
+        rethrow;
+      }
     }
     throw Exception('시나리오 생성 실패: ${response.statusCode}');
   }
