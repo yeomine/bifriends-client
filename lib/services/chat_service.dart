@@ -52,13 +52,18 @@ class ChatService {
     );
 
     debugPrint('[ChatService] sendMessage status: ${response.statusCode}');
-    debugPrint('[ChatService] sendMessage body: ${utf8.decode(response.bodyBytes)}');
+    debugPrint(
+      '[ChatService] sendMessage body: ${utf8.decode(response.bodyBytes)}',
+    );
 
-    if (response.statusCode == 200) {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
       try {
-        final json = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        final json =
+            jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
         final chatResponse = ChatResponse.fromJson(json);
-        debugPrint('[ChatService] reply: "${chatResponse.reply}", cta: ${chatResponse.cta?.type}');
+        debugPrint(
+          '[ChatService] reply: "${chatResponse.reply}", cta: ${chatResponse.cta?.type}',
+        );
         return chatResponse;
       } catch (e) {
         debugPrint('[ChatService] 파싱 오류: $e');
@@ -77,12 +82,14 @@ class ChatService {
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       return (data['messages'] as List<dynamic>)
-          .map((m) => ChatMessage(
-                id: (m['id'] as num).toString(),
-                content: m['content'] as String,
-                isUser: (m['role'] as String) == 'USER',
-                timestamp: DateTime.parse(m['createdAt'] as String),
-              ))
+          .map(
+            (m) => ChatMessage(
+              id: (m['id'] as num).toString(),
+              content: m['content'] as String,
+              isUser: (m['role'] as String) == 'USER',
+              timestamp: DateTime.parse(m['createdAt'] as String),
+            ),
+          )
           .toList();
     }
     throw Exception('세션 메시지 로드 실패: ${response.statusCode}');
