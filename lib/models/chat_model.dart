@@ -56,7 +56,10 @@ class ChatResponse {
       sessionId: json['sessionId'] as String? ?? '',
       reply: json['reply'] as String? ?? '',
       cta: CtaAction.fromJson(json['cta'] as Map<String, dynamic>?),
-      todosCreated: rawTodos?.map((e) => e as int).toList() ?? [],
+      todosCreated: rawTodos
+              ?.map((e) => e is int ? e : (e as Map<String, dynamic>)['id'] as int)
+              .toList() ??
+          [],
     );
   }
 }
