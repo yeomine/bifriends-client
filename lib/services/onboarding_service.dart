@@ -77,6 +77,44 @@ class OnboardingService {
     }
   }
 
+  Future<void> submitTerms({
+    required bool termsAgreed,
+    required bool privacyAgreed,
+    required bool marketingAgreed,
+  }) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/onboarding/terms');
+    final headers = await _getHeaders();
+    final body = jsonEncode({
+      'termsAgreed': termsAgreed,
+      'privacyAgreed': privacyAgreed,
+      'marketingAgreed': marketingAgreed,
+    });
+
+    final response = await http.post(url, headers: headers, body: body);
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception('약관 동의 실패: ${response.statusCode}');
+    }
+  }
+
+  Future<void> setupParentPassword({
+    required String password,
+    required String passwordConfirm,
+  }) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/onboarding/parent-password');
+    final headers = await _getHeaders();
+    final body = jsonEncode({
+      'password': password,
+      'passwordConfirm': passwordConfirm,
+    });
+
+    final response = await http.post(url, headers: headers, body: body);
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception('부모님 비밀번호 설정 실패: ${response.statusCode}');
+    }
+  }
+
   Future<void> completeOnboarding() async {
     final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/onboarding/complete');
     final headers = await _getHeaders();

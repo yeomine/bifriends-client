@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/onboarding_service.dart';
 import '../theme/app_colors.dart';
 import 'parent_setup_screen.dart';
 
@@ -11,6 +12,8 @@ class GuardianConsentScreen extends StatefulWidget {
 }
 
 class _GuardianConsentScreenState extends State<GuardianConsentScreen> {
+  final OnboardingService _onboardingService = OnboardingService();
+  bool _isLoading = false;
   bool _allAgreed = false;
   bool _termsAgreed = false;
   bool _privacyAgreed = false;
@@ -184,17 +187,46 @@ class _GuardianConsentScreenState extends State<GuardianConsentScreen> {
                     elevation: 4,
                     shadowColor: Colors.black.withValues(alpha: 0.2),
                   ),
-                  onPressed: _canProceed
-                      ? () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const ParentSetupScreen(),
-                            ),
-                          );
+                  onPressed: (_canProceed && !_isLoading)
+                      ? () async {
+                          setState(() => _isLoading = true);
+                          try {
+                            await _onboardingService.submitTerms(
+                              termsAgreed: _termsAgreed,
+                              privacyAgreed: _privacyAgreed,
+                              marketingAgreed: _childInfoAgreed,
+                            );
+                            if (!context.mounted) return;
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ParentSetupScreen(),
+                              ),
+                            );
+                          } catch (e) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  e.toString().replaceAll('Exception: ', ''),
+                                ),
+                              ),
+                            );
+                          } finally {
+                            if (mounted) setState(() => _isLoading = false);
+                          }
                         }
                       : null,
-                  child: const Text(
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
                     '보호자 휴대폰 인증하기',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),

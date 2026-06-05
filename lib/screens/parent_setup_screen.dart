@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../services/parent_service.dart';
+import '../services/onboarding_service.dart';
 import 'onboarding_screen.dart';
 
 class ParentSetupScreen extends StatefulWidget {
@@ -12,7 +12,7 @@ class ParentSetupScreen extends StatefulWidget {
 
 class _ParentSetupScreenState extends State<ParentSetupScreen> {
   final PageController _pageController = PageController();
-  final _parentService = ParentService();
+  final _onboardingService = OnboardingService();
   int _currentStep = 0;
 
   String _pin = '';
@@ -40,7 +40,10 @@ class _ParentSetupScreenState extends State<ParentSetupScreen> {
       }
       setState(() => _isLoading = true);
       try {
-        await _parentService.resetPassword(_pin, _confirmPin);
+        await _onboardingService.setupParentPassword(
+          password: _pin,
+          passwordConfirm: _confirmPin,
+        );
         if (mounted) {
           _pageController.nextPage(
             duration: const Duration(milliseconds: 300),
