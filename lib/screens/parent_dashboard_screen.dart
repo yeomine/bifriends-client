@@ -27,6 +27,8 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   bool _isListLoading = true;
   bool _isDetailLoading = false;
   bool _isMissionLoading = false;
+  bool _isGenerating = false;
+  bool _showingHistory = false;
 
   @override
   void initState() {
@@ -53,17 +55,12 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   Future<void> _fetchReportList() async {
     try {
       final summaries = await _reportService.getReports();
-      if (mounted) {
-        if (summaries.isEmpty) {
-          _loadMock();
-          return;
-        }
-        setState(() {
-          _summaries = summaries;
-          _isListLoading = false;
-        });
-        await _fetchDetail(summaries.first.reportId);
-      }
+      if (!mounted) return;
+      summaries.sort((a, b) => b.weekStart.compareTo(a.weekStart));
+      setState(() {
+        _summaries = summaries;
+        _isListLoading = false;
+      });
     } catch (_) {
       if (mounted) _loadMock();
     }
@@ -88,6 +85,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
         setState(() => _detail = detail);
       }
     } catch (_) {
+      if (mounted) setState(() => _detail = ReportDetail.mock());
     } finally {
       if (mounted) setState(() => _isDetailLoading = false);
     }
@@ -116,6 +114,54 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
       );
     } catch (_) {
       return detail;
+    }
+  }
+
+  Future<void> _onGenerateReport() async {
+    final memberId = _memberId;
+    if (memberId == null || _isGenerating) return;
+
+    setState(() => _isGenerating = true);
+    try {
+      final now = DateTime.now();
+      final monday = now.subtract(Duration(days: now.weekday - 1));
+      final sunday = monday.add(const Duration(days: 6));
+      String fmt(DateTime d) =>
+          '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+      await _reportService.fetchWeeklyReport(
+        memberId: memberId,
+        weekStart: fmt(monday),
+        weekEnd: fmt(sunday),
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('리포트 생성 요청이 완료됐어요! 잠시 후 확인해 주세요.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      setState(() => _isListLoading = true);
+      await _fetchReportList();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('리포트 생성 요청에 실패했어요. 다시 시도해 주세요.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
+    }
+  }
+
+  void _enterHistory() {
+    setState(() {
+      _showingHistory = true;
+      _selectedIndex = 0;
+    });
+    if (_summaries.isNotEmpty && _detail?.reportId != _summaries[0].reportId) {
+      _fetchDetail(_summaries[0].reportId);
     }
   }
 
@@ -172,70 +218,9 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.primary),
             )
-          : _summaries.isEmpty
-          ? _buildEmptyState()
-          : Stack(
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildWeekSelector(),
-                    Expanded(
-                      child: _isDetailLoading || _detail == null
-                          ? const Center(
-                              child: CircularProgressIndicator(
-                                color: AppColors.primary,
-                              ),
-                            )
-                          : SingleChildScrollView(
-                              padding: const EdgeInsets.fromLTRB(24, 20, 24, 100),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildSummaryCard(_detail!),
-                                  if (_detail!.growth.parentTip != null) ...[
-                                    const SizedBox(height: 24),
-                                    _buildParentTipCard(_detail!.growth.parentTip!),
-                                  ],
-                                  const SizedBox(height: 24),
-                                  _buildLearningPatternCard(_detail!),
-                                  const SizedBox(height: 24),
-                                  const Text(
-                                    '학습 현황',
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.textMain,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  ..._detail!.learningStatus.all.map(
-                                    (s) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 16),
-                                      child: _buildSubjectCard(s),
-                                    ),
-                                  ),
-                                  if (_detail!.chatSafety != null)
-                                    _buildChatSafetyCard(_detail!.chatSafety!),
-                                  if (_detail!.keywords.isNotEmpty) ...[
-                                    const SizedBox(height: 16),
-                                    _buildKeywordsCard(_detail!.keywords),
-                                  ],
-                                  const SizedBox(height: 16),
-                                ],
-                              ),
-                            ),
-                    ),
-                  ],
-                ),
-                Positioned(
-                  bottom: 20,
-                  left: 24,
-                  right: 24,
-                  child: _buildMissionButton(),
-                ),
-              ],
-            ),
+          : _showingHistory
+          ? _buildHistoryView()
+          : _buildGenerationView(),
     );
   }
 
@@ -249,7 +234,9 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
           color: AppColors.textMain,
           size: 20,
         ),
-        onPressed: () => Navigator.pop(context),
+        onPressed: _showingHistory
+            ? () => setState(() => _showingHistory = false)
+            : () => Navigator.pop(context),
       ),
       title: Column(
         children: [
@@ -767,36 +754,178 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildGenerationView() {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.assignment_outlined,
-            size: 60,
-            color: AppColors.borderLight,
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            '아직 리포트가 없어요',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textMain,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.assignment_outlined,
+              size: 60,
+              color: AppColors.borderLight,
             ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            '학습을 진행하면 주간 리포트가 생성돼요.',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSub,
+            const SizedBox(height: 20),
+            const Text(
+              '주간 리포트를 생성해 보세요',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textMain,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            const Text(
+              '이번 주 학습 내용을 바탕으로\nAI가 성장 리포트를 만들어 드려요.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSub,
+                height: 1.6,
+              ),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isGenerating ? null : _onGenerateReport,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  disabledBackgroundColor: AppColors.primaryDisabled,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 4,
+                  shadowColor: Colors.black.withValues(alpha: 0.2),
+                ),
+                child: _isGenerating
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.auto_awesome, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            '주간 리포트 생성하기',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+            if (_summaries.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _enterHistory,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.textMain,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 4,
+                    shadowColor: Colors.black.withValues(alpha: 0.2),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.history, size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        '지난 리포트 보러 가기',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildHistoryView() {
+    return Stack(
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildWeekSelector(),
+            Expanded(
+              child: _isDetailLoading || _detail == null
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppColors.primary),
+                    )
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 100),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSummaryCard(_detail!),
+                          if (_detail!.growth.parentTip != null) ...[
+                            const SizedBox(height: 24),
+                            _buildParentTipCard(_detail!.growth.parentTip!),
+                          ],
+                          const SizedBox(height: 24),
+                          _buildLearningPatternCard(_detail!),
+                          const SizedBox(height: 24),
+                          const Text(
+                            '학습 현황',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textMain,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          ..._detail!.learningStatus.all.map(
+                            (s) => Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: _buildSubjectCard(s),
+                            ),
+                          ),
+                          if (_detail!.chatSafety != null)
+                            _buildChatSafetyCard(_detail!.chatSafety!),
+                          if (_detail!.keywords.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            _buildKeywordsCard(_detail!.keywords),
+                          ],
+                          const SizedBox(height: 16),
+                        ],
+                      ),
+                    ),
+            ),
+          ],
+        ),
+        Positioned(
+          bottom: 20,
+          left: 24,
+          right: 24,
+          child: _buildMissionButton(),
+        ),
+      ],
     );
   }
 }
