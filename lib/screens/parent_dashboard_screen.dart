@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../models/growth_report_model.dart';
+import '../services/auth_service.dart';
 import '../services/report_service.dart';
 import '../services/member_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/guardian_mission_sheet.dart';
+import 'login_screen.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({super.key});
@@ -17,6 +19,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
 
   final _reportService = ReportService();
   final _memberService = MemberService();
+  final _authService = AuthService();
 
   List<ReportSummary> _summaries = [];
   ReportDetail? _detail;
@@ -210,6 +213,134 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     }
   }
 
+  void _showAccountSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.borderLight,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            _buildAccountTile(
+              icon: Icons.logout,
+              label: '로그아웃',
+              color: AppColors.textMain,
+              onTap: () async {
+                Navigator.pop(context);
+                await _authService.signOut();
+                if (mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (_) => false,
+                  );
+                }
+              },
+            ),
+            const SizedBox(height: 8),
+            _buildAccountTile(
+              icon: Icons.person_remove_outlined,
+              label: '회원 탈퇴',
+              color: const Color(0xFFE53935),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmDeleteAccount();
+              },
+            ),
+            SafeArea(top: false, child: const SizedBox(height: 16)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccountTile({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(width: 14),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteAccount() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          '회원 탈퇴',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: const Text(
+          '탈퇴하면 모든 데이터가 삭제되며\n복구할 수 없어요. 정말 탈퇴할까요?',
+          style: TextStyle(height: 1.6),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소', style: TextStyle(color: AppColors.textSub)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _authService.deleteAccount();
+              if (mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (_) => false,
+                );
+              }
+            },
+            child: const Text(
+              '탈퇴하기',
+              style: TextStyle(color: Color(0xFFE53935), fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -268,7 +399,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
             color: AppColors.textMain,
             size: 24,
           ),
-          onPressed: () {},
+          onPressed: () => _showAccountSheet(),
         ),
       ],
     );
