@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/api_config.dart';
@@ -30,6 +31,25 @@ class MemberService {
       return Member.fromJson(jsonData);
     } else {
       throw Exception('내 정보 조회 실패: ${response.statusCode}');
+    }
+  }
+
+  Future<void> updateSettings({
+    required String nickname,
+    required int grade,
+    required List<String> interests,
+  }) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/members/me/settings');
+    final headers = await _getHeaders();
+    final body = jsonEncode({
+      'nickname': nickname,
+      'grade': grade,
+      'interests': interests,
+    });
+    final response = await http.patch(url, headers: headers, body: body);
+    if (response.statusCode != 200) {
+      debugPrint('[MemberService] updateSettings 실패: ${response.statusCode} ${utf8.decode(response.bodyBytes)}');
+      throw Exception('설정 저장 실패: ${response.statusCode}');
     }
   }
 }
