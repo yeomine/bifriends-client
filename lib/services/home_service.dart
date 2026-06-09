@@ -34,19 +34,15 @@ class HomeService {
     }
   }
 
-  Future<TodoItem> createTodo({
-    required String title,
-    required int estimatedMinutes,
-  }) async {
+  Future<TodoItem> createTodo({required String title, int? memberId}) async {
     final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/todos');
     final headers = await _getHeaders();
+    final body = <String, dynamic>{'title': title};
+    if (memberId != null) body['memberId'] = memberId;
     final response = await http.post(
       url,
       headers: headers,
-      body: jsonEncode({
-        'title': title,
-        'estimatedTimeSec': estimatedMinutes * 60,
-      }),
+      body: jsonEncode(body),
     );
     if (response.statusCode == 200 || response.statusCode == 201) {
       final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
@@ -77,8 +73,10 @@ class HomeService {
     }
   }
 
-  Future<void> deleteTodo(String todoId) async {
-    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/todos/$todoId');
+  Future<void> deleteTodo(String todoId, {required int memberId}) async {
+    final url = Uri.parse(
+      '${ApiConfig.baseUrl}/api/v1/todos/$todoId',
+    ).replace(queryParameters: {'memberId': memberId.toString()});
     final headers = await _getHeaders();
     final response = await http.delete(url, headers: headers);
     if (response.statusCode != 200 && response.statusCode != 204) {

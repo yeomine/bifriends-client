@@ -73,11 +73,37 @@ class ChatService {
     throw Exception('메시지 전송 실패: ${response.statusCode}');
   }
 
+  Future<List<ChatSession>> getMySessions() async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/chat/sessions');
+    final response = await http.get(url, headers: await _getHeaders());
+    debugPrint('[ChatService] getMySessions status: ${response.statusCode}');
+    if (response.statusCode == 200) {
+      final data =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      return (data['sessions'] as List<dynamic>)
+          .map((s) => ChatSession.fromJson(s as Map<String, dynamic>))
+          .toList();
+    }
+    throw Exception('세션 목록 로드 실패: ${response.statusCode}');
+  }
+
+  Future<void> deleteSession(String sessionId) async {
+    final url = Uri.parse(
+      '${ApiConfig.baseUrl}/api/v1/chat/sessions/$sessionId',
+    );
+    final response = await http.delete(url, headers: await _getHeaders());
+    debugPrint('[ChatService] deleteSession status: ${response.statusCode}');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('세션 삭제 실패: ${response.statusCode}');
+    }
+  }
+
   Future<List<ChatMessage>> getSessionMessages(String sessionId) async {
     final url = Uri.parse(
-      '${ApiConfig.baseUrl}/api/v1/chat/sessions/$sessionId/messages',
+      '${ApiConfig.baseUrl}/api/v1/chat/my/sessions/$sessionId/messages',
     );
     final response = await http.get(url, headers: await _getHeaders());
+    debugPrint('[ChatService] getSessionMessages status: ${response.statusCode}');
     if (response.statusCode == 200) {
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;

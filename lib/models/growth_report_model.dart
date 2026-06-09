@@ -116,7 +116,7 @@ class GrowthSection {
   const GrowthSection({required this.summary, this.parentTip});
 
   factory GrowthSection.fromJson(Map<String, dynamic> json) => GrowthSection(
-    summary: json['summary'] as String,
+    summary: json['summary'] as String? ?? '',
     parentTip: json['parentTip'] as String?,
   );
 }
@@ -286,53 +286,4 @@ class ReportDetail {
     );
   }
 
-  static ReportSummary mockSummary() => ReportSummary(
-    reportId: -1,
-    weekStart: '2026-05-26',
-    weekEnd: '2026-06-01',
-    safetySignal: ChatSafetyLevel.green,
-    hasMission: true,
-  );
-
-  static ReportDetail mock() => ReportDetail(
-    reportId: -1,
-    weekStart: '2026-05-26',
-    weekEnd: '2026-06-01',
-    growth: const GrowthSection(
-      summary:
-          '이번 주 아이는 수학에서 눈에 띄는 성장을 보여줬어요. '
-          '더하기 개념을 꾸준히 연습하며 자신감이 붙었고, 국어 독해에서도 이야기의 흐름을 파악하는 능력이 향상되었습니다. '
-          '스스로 문제를 풀어보려는 태도가 정말 훌륭했어요!',
-      parentTip: '오늘 배운 내용을 저녁 식사 시간에 아이에게 한 번 물어봐 주세요. 설명하면서 더 깊이 이해하게 됩니다.',
-    ),
-    learningPattern: const LearningPattern(
-      learningDays: [1, 2, 3, 5, 6],
-      completedTodoCount: 15,
-    ),
-    learningStatus: const LearningStatus(
-      korean: SubjectSummary(
-        key: 'korean',
-        summary: '비 오는 날 학습을 통해 감각적 표현을 익히고 문장을 완성하는 능력이 향상되었어요.',
-      ),
-      math: SubjectSummary(
-        key: 'math',
-        summary: '더하기 개념을 완벽히 이해하고 빠르게 계산하는 연습을 잘 해내고 있어요.',
-      ),
-      emotion: SubjectSummary(
-        key: 'emotion',
-        summary: '감정을 언어로 표현하는 연습을 통해 자신의 마음을 잘 인식하고 있어요.',
-      ),
-    ),
-    chatSafety: const ChatSafetyDetail(
-      signal: ChatSafetyLevel.green,
-      score: 92,
-      reasonSummary:
-          '아이가 정서적으로 안정된 상태에서 학습에 참여하고 있으며, 긍정적인 감정 표현이 많았습니다.',
-    ),
-    parentMission: const GuardianMission(
-      praisePhrase: '"이번 주 정말 열심히 공부했구나! 스스로 문제를 끝까지 풀려고 한 모습이 정말 대견해!"',
-      activitySuggestion: '주말에 아이와 함께 오늘 배운 수학 문제를 게임처럼 풀어보세요. 부모님이 문제를 내고 아이가 맞히는 방식으로 해보면 재미있어요.',
-    ),
-    keywords: ['더하기', '감각적 표현', '문장 완성', '감정 표현'],
-  );
 }

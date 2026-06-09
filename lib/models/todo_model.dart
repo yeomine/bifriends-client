@@ -7,9 +7,12 @@ class TodoItem {
   final int estimatedMinutes;
   bool isCompleted;
   final int? targetTabIndex;
+  final LearningType? learningType;
   final TodoSource _source;
 
   bool get isUserCreated => _source == TodoSource.USER;
+  bool get canDelete =>
+      _source == TodoSource.USER || _source == TodoSource.AGENT;
 
   TodoItem({
     this.id,
@@ -18,6 +21,7 @@ class TodoItem {
     required this.estimatedMinutes,
     this.isCompleted = false,
     this.targetTabIndex,
+    this.learningType,
     TodoSource source = TodoSource.SYSTEM,
   }) : _source = source;
 
@@ -29,6 +33,7 @@ class TodoItem {
       estimatedMinutes: (res.estimatedTimeSec / 60).ceil().clamp(1, 999),
       isCompleted: res.isCompleted,
       targetTabIndex: _tabIndexForType(res.type),
+      learningType: res.learningType,
       source: res.source,
     );
   }

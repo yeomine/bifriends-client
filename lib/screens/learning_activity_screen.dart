@@ -12,6 +12,7 @@ class LearningActivityScreen extends StatefulWidget {
   final int initialStep;
   final VoidCallback? onStepCompleted;
   final String subject;
+  final int grade;
 
   const LearningActivityScreen({
     super.key,
@@ -19,6 +20,7 @@ class LearningActivityScreen extends StatefulWidget {
     this.initialStep = 1,
     this.onStepCompleted,
     this.subject = 'math',
+    this.grade = 3,
   });
 
   @override
@@ -270,38 +272,37 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
   }
 
   Future<void> _completeCycleAndShow() async {
-    debugPrint(
-      '[Complete] useApi=$_useApiValidation, '
-      'isLastCycle=$_isLastCycle, cycleIdx=$_currentCycleIdx, '
-      'totalCycles=$_totalCycles',
-    );
+    final wasLastCycle = _isLastCycle;
     if (_useApiValidation) {
       try {
-        final cycleResult = widget.subject == 'korean'
-            ? await _koreanService.completeCycle(
+        await (widget.subject == 'korean'
+            ? _koreanService.completeCycle(
                 stepId: widget.levelData.stepId,
                 cycleNumber: _currentCycleIdx + 1,
               )
-            : await _mathService.completeCycle(
+            : _mathService.completeCycle(
                 stepId: widget.levelData.stepId,
                 cycleNumber: _currentCycleIdx + 1,
-              );
-        if (_isLastCycle && cycleResult.isStepCompleted) {
-          widget.subject == 'korean'
-              ? await _koreanService.completeStep(widget.levelData.stepId)
-              : await _mathService.completeStep(widget.levelData.stepId);
-        }
+              ));
       } catch (e) {
-        debugPrint('[Complete] 에러: $e');
+        debugPrint('[Complete] completeCycle 에러: $e');
+      }
+      if (wasLastCycle) {
+        try {
+          await (widget.subject == 'korean'
+              ? _koreanService.completeStep(widget.levelData.stepId)
+              : _mathService.completeStep(widget.levelData.stepId));
+        } catch (e) {
+          debugPrint('[Complete] completeStep 에러: $e');
+        }
       }
     }
+    if (!mounted) return;
     widget.onStepCompleted?.call();
-    if (mounted) {
-      setState(() {
-        _isLastStepCompleted = _isLastCycle;
-        _showSuccessOverlay = true;
-      });
-    }
+    setState(() {
+      _isLastStepCompleted = wasLastCycle;
+      _showSuccessOverlay = true;
+    });
   }
 
   @override
@@ -339,6 +340,16 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
         ],
       ),
     );
+  }
+
+  String _resolveConceptImagePath(String image) {
+    if (image.isEmpty) return '';
+    if (image.startsWith('assets/')) return image;
+    final folder = widget.subject == 'korean' ? 'study_korean' : 'study_math';
+    final filename = (widget.subject == 'math' && !RegExp(r'^g\d_').hasMatch(image))
+        ? 'g${widget.grade}_$image'
+        : image;
+    return 'assets/images/$folder/grade${widget.grade}/$filename';
   }
 
   Widget _buildTopBar() {
@@ -446,17 +457,17 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 44),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0F8ED),
+          if (_resolveConceptImagePath(slide.image).isNotEmpty)
+            ClipRRect(
               borderRadius: BorderRadius.circular(28),
+              child: Image.asset(
+                _resolveConceptImagePath(slide.image),
+                width: double.infinity,
+                height: 200,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
             ),
-            child: Center(
-              child: Text(slide.image, style: const TextStyle(fontSize: 72)),
-            ),
-          ),
           const SizedBox(height: 28),
           RichInlineText(
             spans: slide.spans,

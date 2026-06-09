@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
-enum GuideTourStep { welcomePopup, learningTab, chatTab, heartTab }
+enum GuideTourStep { welcomePopup, homeTab, learningTab, chatTab, heartTab }
 
 class GuideTourStepInfo {
   final String title;
@@ -25,24 +25,30 @@ const Map<GuideTourStep, GuideTourStepInfo> guideTourStepInfoMap = {
     buttonText: '구경하러 가기',
     icon: Icons.waving_hand,
   ),
+  GuideTourStep.homeTab: GuideTourStepInfo(
+    title: '홈 🏠',
+    description: '오늘 할 일이랑 레오의 모습을\n여기서 한눈에 볼 수 있어!',
+    buttonText: '다음',
+    icon: Icons.home,
+  ),
   GuideTourStep.learningTab: GuideTourStepInfo(
-    title: '배움 📚',
+    title: '공부방 📚',
     description: '여기서 다양한 학습을\n재밌게 할 수 있어!',
     buttonText: '다음',
     icon: Icons.menu_book,
   ),
   GuideTourStep.chatTab: GuideTourStepInfo(
-    title: '챗 💬',
-    description: 'AI 친구와 이야기하면서\n궁금한 걸 물어볼 수 있어!',
+    title: '레오랑 톡톡 💬',
+    description: '레오와 이야기하면서\n궁금한 걸 물어볼 수 있어!',
     buttonText: '다음',
     icon: Icons.chat_bubble,
   ),
 
   GuideTourStep.heartTab: GuideTourStepInfo(
-    title: '마음 💚',
+    title: '친구랑 💚',
     description: '오늘 내 기분을 기록하고\n감정을 배울 수 있어!',
     buttonText: '열심히 해볼게!',
-    icon: Icons.favorite,
+    icon: Icons.people,
   ),
 };
 
@@ -128,7 +134,7 @@ class _GuideTourOverlayState extends State<GuideTourOverlay>
         ? MediaQuery.of(context).size.height - spotlightRect.top + 20
         : MediaQuery.of(context).padding.bottom +
               kBottomNavigationBarHeight / 2 +
-              20;
+              80;
 
     return FadeTransition(
       opacity: _fadeAnimation,

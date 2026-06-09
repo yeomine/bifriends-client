@@ -30,23 +30,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
   bool _isListening = false;
   bool _isTranscribing = false;
   bool _isLeoTyping = false;
+  bool _isSessionsLoading = false;
 
-  // TODO: BE 연동 시 세션 목록 API로 교체
-  String _activeSessionId = 'session_1';
-  final List<ChatSession> _sessions = [
-    ChatSession(id: 'session_1', title: '안녕 카피바라!', createdAt: DateTime.now()),
-    ChatSession(
-      id: 'session_2',
-      title: '리오와의 첫 인사',
-      createdAt: DateTime.now().subtract(const Duration(days: 1)),
-    ),
-    ChatSession(
-      id: 'session_3',
-      title: '내일 어떤 음식을 만들까?',
-      createdAt: DateTime.now().subtract(const Duration(days: 3)),
-    ),
-  ];
-
+  List<ChatSession> _sessions = [];
   List<ChatMessage> _messages = [];
 
   static const List<(String, String)> _quickReplies = [
@@ -61,6 +47,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
     super.initState();
     _sessionId = ChatService.generateSessionId();
     _fetchMember();
+    _fetchSessions();
   }
 
   @override
@@ -78,6 +65,18 @@ class _ConversationScreenState extends State<ConversationScreen> {
     } catch (_) {}
   }
 
+  Future<void> _fetchSessions() async {
+    setState(() => _isSessionsLoading = true);
+    try {
+      final sessions = await _chatService.getMySessions();
+      if (mounted) setState(() => _sessions = sessions);
+    } catch (e) {
+      debugPrint('[Chat] 세션 목록 로드 오류: $e');
+    } finally {
+      if (mounted) setState(() => _isSessionsLoading = false);
+    }
+  }
+
   String get _welcomeGreeting {
     final name = _member?.displayNickname ?? '친구';
     return '$name${_vocativeParticle(name)}, 안녕! 👋\n오늘 어떤 이야기를 해볼까?';
@@ -88,7 +87,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
     String content,
     bool isUser, {
     CtaAction? cta,
-    List<int> todosCreated = const [],
+    List<TodoCreated> todosCreated = const [],
   }) {
     final now = DateTime.now();
     return ChatMessage(
@@ -226,17 +225,104 @@ class _ConversationScreenState extends State<ConversationScreen> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
+  Future<void> _confirmDeleteSession(ChatSession session) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          '이 대화를 지울까요? 🗑️',
+          style: TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textMain,
+          ),
+        ),
+        content: Text(
+          '"${session.title}"\n지우면 다시 볼 수 없어요!',
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColors.textSub,
+            height: 1.6,
+          ),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(
+              '아니요!',
+              style: TextStyle(
+                color: AppColors.textSub,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              '네, 지울게요',
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) await _deleteSession(session);
+  }
+
+  Future<void> _deleteSession(ChatSession session) async {
+    try {
+      await _chatService.deleteSession(session.id);
+      if (!mounted) return;
+      setState(() {
+        _sessions.removeWhere((s) => s.id == session.id);
+        if (_sessionId == session.id) {
+          _sessionId = ChatService.generateSessionId();
+          _messages = [];
+          _isLeoTyping = false;
+          _closeHistoryPanel();
+        }
+      });
+    } catch (e) {
+      debugPrint('[Chat] 세션 삭제 오류: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('삭제에 실패했어요. 다시 시도해줘!'),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            backgroundColor: AppColors.textMain,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _loadSessionMessages(String sessionId) async {
     setState(() {
-      _activeSessionId = sessionId;
+      _sessionId = sessionId;
       _messages = [];
       _isLeoTyping = false;
       _closeHistoryPanel();
     });
     try {
       final messages = await _chatService.getSessionMessages(sessionId);
-      if (mounted) setState(() => _messages = messages);
-    } catch (_) {}
+      if (mounted) {
+        setState(() => _messages = messages);
+        _scrollToBottom();
+      }
+    } catch (e) {
+      debugPrint('[Chat] 과거 메시지 로드 오류: $e');
+    }
   }
 
   @override
@@ -305,7 +391,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
                       ),
                     ),
                     Text(
-                      '${_sessions.length} 대화 중',
+                      _sessions.isEmpty ? '대화 시작하기' : '${_sessions.length}개의 대화',
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
@@ -549,7 +635,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
     }
   }
 
-  void _showTodosSnackbar(List<int> todos) {
+  void _showTodosSnackbar(List<TodoCreated> todos) {
     final text = todos.length == 1
         ? '할 일 1개가 추가됐어요!'
         : '할 일 ${todos.length}개가 추가됐어요!';
@@ -650,14 +736,54 @@ class _ConversationScreenState extends State<ConversationScreen> {
     );
   }
 
-  Widget _buildHistoryPanel() {
-    final activeSession = _sessions.firstWhere(
-      (s) => s.id == _activeSessionId,
-      orElse: () => _sessions.first,
+  Widget _buildSessionListItem(ChatSession session) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: AppColors.cardLight,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => _loadSessionMessages(session.id),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                child: Text(
+                  session.title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textMain,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(
+              Icons.delete_outline,
+              color: AppColors.textSub,
+              size: 18,
+            ),
+            onPressed: () => _confirmDeleteSession(session),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            constraints: const BoxConstraints(),
+          ),
+        ],
+      ),
     );
-    final pastSessions = _sessions
-        .where((s) => s.id != _activeSessionId)
-        .toList();
+  }
+
+  Widget _buildHistoryPanel() {
+    final activeSession = _sessions.where((s) => s.id == _sessionId).firstOrNull;
+    final pastSessions = _sessions.where((s) => s.id != _sessionId).toList();
 
     return Container(
       decoration: const BoxDecoration(
@@ -670,149 +796,171 @@ class _ConversationScreenState extends State<ConversationScreen> {
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+      child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.menu,
-                    color: AppColors.textMain,
-                    size: 24,
-                  ),
-                  onPressed: () => setState(_closeHistoryPanel),
-                ),
-                const Text(
-                  '대화 기록',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textMain,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => setState(() {
-                  _sessionId = ChatService.generateSessionId();
-                  _messages = [];
-                  _isLeoTyping = false;
-                  _closeHistoryPanel();
-                }),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text(
-                  '새로운 대화 시작',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 0,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: () =>
-                  setState(() => _isSessionsExpanded = !_isSessionsExpanded),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.textMain,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.chat_bubble_outline,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        activeSession.title,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.menu,
+                          color: AppColors.textMain,
+                          size: 24,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        onPressed: () => setState(_closeHistoryPanel),
+                      ),
+                      const Text(
+                        '대화 기록',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textMain,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => setState(() {
+                        _sessionId = ChatService.generateSessionId();
+                        _messages = [];
+                        _isLeoTyping = false;
+                        _closeHistoryPanel();
+                      }),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text(
+                        '새로운 대화 시작',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Icon(
-                      _isSessionsExpanded
-                          ? Icons.keyboard_arrow_up
-                          : Icons.keyboard_arrow_down,
-                      color: Colors.white.withValues(alpha: 0.8),
-                      size: 20,
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
               ),
             ),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 260),
-              curve: Curves.easeInOut,
-              child: _isSessionsExpanded && pastSessions.isNotEmpty
-                  ? Column(
-                      children: [
-                        const SizedBox(height: 12),
-                        ...pastSessions.map(
-                          (session) => GestureDetector(
-                            onTap: () => _loadSessionMessages(session.id),
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 4),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.cardLight,
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      session.title,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                        color: AppColors.textMain,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  const Icon(
-                                    Icons.chevron_right,
-                                    color: AppColors.textSub,
-                                    size: 18,
-                                  ),
-                                ],
-                              ),
+            Expanded(
+              child: _isSessionsLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    )
+                  : _sessions.isEmpty
+                      ? const Center(
+                          child: Text(
+                            '아직 대화 기록이 없어요',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSub,
                             ),
                           ),
+                        )
+                      : ListView(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                          children: [
+                            if (activeSession != null) ...[
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: AppColors.textMain,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () => setState(
+                                          () => _isSessionsExpanded =
+                                              !_isSessionsExpanded,
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 14,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.chat_bubble_outline,
+                                                color: Colors.white,
+                                                size: 18,
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Expanded(
+                                                child: Text(
+                                                  activeSession.title,
+                                                  style: const TextStyle(
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Colors.white,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Icon(
+                                                _isSessionsExpanded
+                                                    ? Icons.keyboard_arrow_up
+                                                    : Icons.keyboard_arrow_down,
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.8,
+                                                ),
+                                                size: 20,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.delete_outline,
+                                        color: Colors.white.withValues(
+                                          alpha: 0.7,
+                                        ),
+                                        size: 18,
+                                      ),
+                                      onPressed: () =>
+                                          _confirmDeleteSession(activeSession),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                      ),
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (_isSessionsExpanded &&
+                                  pastSessions.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                ...pastSessions.map(_buildSessionListItem),
+                              ],
+                            ] else
+                              ...pastSessions.map(_buildSessionListItem),
+                          ],
                         ),
-                      ],
-                    )
-                  : const SizedBox.shrink(),
             ),
           ],
         ),

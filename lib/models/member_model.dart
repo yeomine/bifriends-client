@@ -1,4 +1,5 @@
 class Member {
+  final int? id;
   final String email;
   final String name;
   final String? profileImageUrl;
@@ -12,6 +13,7 @@ class Member {
   final String? representativeItemType;
 
   Member({
+    this.id,
     required this.email,
     required this.name,
     this.profileImageUrl,
@@ -27,12 +29,14 @@ class Member {
 
   factory Member.fromJson(Map<String, dynamic> json) {
     return Member(
+      id: json['id'] as int?,
       email: json['email'] as String? ?? '',
       name: json['name'] as String? ?? '',
       profileImageUrl: json['profileImageUrl'] as String?,
       nickname: json['nickname'] as String?,
       grade: json['grade'] as int?,
-      interests: (json['interests'] as List<dynamic>?)
+      interests:
+          (json['interests'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],

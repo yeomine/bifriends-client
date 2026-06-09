@@ -41,7 +41,7 @@ class ChatResponse {
   final String sessionId;
   final String reply;
   final CtaAction? cta;
-  final List<int> todosCreated;
+  final List<TodoCreated> todosCreated;
 
   const ChatResponse({
     required this.sessionId,
@@ -56,8 +56,9 @@ class ChatResponse {
       sessionId: json['sessionId'] as String? ?? '',
       reply: json['reply'] as String? ?? '',
       cta: CtaAction.fromJson(json['cta'] as Map<String, dynamic>?),
-      todosCreated: rawTodos
-              ?.map((e) => e is int ? e : (e as Map<String, dynamic>)['id'] as int)
+      todosCreated:
+          rawTodos
+              ?.map((e) => TodoCreated.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
     );
@@ -70,7 +71,7 @@ class ChatMessage {
   final bool isUser;
   final DateTime timestamp;
   final CtaAction? cta;
-  final List<int> todosCreated;
+  final List<TodoCreated> todosCreated;
 
   const ChatMessage({
     required this.id,
@@ -94,8 +95,8 @@ class ChatSession {
   });
 
   factory ChatSession.fromJson(Map<String, dynamic> json) => ChatSession(
-    id: json['id'] as String,
-    title: json['title'] as String,
+    id: (json['sessionId'] ?? json['id']) as String,
+    title: json['title'] as String? ?? '대화',
     createdAt: DateTime.parse(json['createdAt'] as String),
   );
 }

@@ -169,6 +169,7 @@ class _ClosetScreenState extends State<ClosetScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isDismissible: true,
+      isScrollControlled: true,
       builder: (ctx) => _PurchaseSuccessSheet(
         item: item,
         onEquip: () {
@@ -775,9 +776,10 @@ class _PurchaseSuccessSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Container(
       margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
+      padding: EdgeInsets.fromLTRB(24, 28, 24, 32 + bottomInset),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.all(Radius.circular(28)),

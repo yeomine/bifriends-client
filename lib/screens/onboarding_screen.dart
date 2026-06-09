@@ -70,15 +70,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<Map<String, dynamic>> _giftItems = const [
     {'id': 'GIFT_1', 'name': '책', 'icon': Icons.book, 'image': 'studying'},
-    {
-      'id': 'GIFT_2',
-      'name': '리본',
-      'icon': Icons.auto_awesome_mosaic,
-      'image': 'ribbon',
-    },
+    {'id': 'GIFT_2', 'name': '리본', 'icon': Icons.redeem, 'image': 'ribbon'},
     {
       'id': 'GIFT_3',
-      'name': '꽃다발',
+      'name': '꽃',
       'icon': Icons.filter_vintage,
       'image': 'flower',
     },
@@ -87,24 +82,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       'name': '선글라스',
       'icon': Icons.sunny,
       'image': 'sunglasses',
-    },
-    {
-      'id': 'GIFT_5',
-      'name': '공룡 의상',
-      'icon': Icons.pets,
-      'image': 'dinosaur',
-    },
-    {
-      'id': 'GIFT_6',
-      'name': '과학자 가운',
-      'icon': Icons.science,
-      'image': 'scientist',
-    },
-    {
-      'id': 'GIFT_7',
-      'name': '가수',
-      'icon': Icons.music_note,
-      'image': 'singer',
     },
   ];
 
@@ -277,7 +254,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget _buildSpeechBubble(String text) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.only(left: 24, right: 24, top: 20, bottom: 36),
+      padding: const EdgeInsets.only(left: 24, right: 24, top: 20, bottom: 20),
       decoration: ShapeDecoration(
         color: Colors.white,
         shape: SpeechBubbleShape(),
@@ -449,25 +426,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 3,
+            crossAxisCount: 2,
             mainAxisSpacing: 16,
             crossAxisSpacing: 16,
-            childAspectRatio: 1.0,
-            children: List.generate(6, (index) {
-              final grade = index + 1;
+            childAspectRatio: 1.4,
+            children: List.generate(4, (index) {
+              final grade = index + 3;
               final isSelected = _selectedGrade == grade;
               return GestureDetector(
                 onTap: () => setState(() => _selectedGrade = grade),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   decoration: BoxDecoration(
-                    color: isSelected ? const Color(0xFFF4EFE7) : Colors.white,
+                    color: isSelected ? AppColors.textSub : Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: isSelected
-                          ? const Color(0xFF738A58)
+                          ? AppColors.textSub
                           : AppColors.borderLight,
-                      width: isSelected ? 2 : 1,
+                      width: 1,
                     ),
                     boxShadow: [
                       BoxShadow(
@@ -483,9 +460,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: isSelected
-                            ? const Color(0xFF738A58)
-                            : AppColors.textMain,
+                        color: isSelected ? Colors.white : AppColors.textMain,
                       ),
                     ),
                   ),
@@ -591,7 +566,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Widget _buildGreetingPage() {
     final displayName = _userName.isEmpty ? '친구' : _userName;
-    final particle = _hasJongseong(displayName) ? '이구나' : '구나';
+    final particle = _hasJongseong(displayName) ? '아' : '야';
     return _buildPageWrapper(
       step: 3,
       buttonText: '나도 반가워!',
@@ -600,9 +575,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       child: Column(
         children: [
           const SizedBox(height: 20),
-          _buildSpeechBubble('오! 이름이 $displayName$particle!\n만나서 정말 반가워! 😊'),
+          _buildSpeechBubble('$displayName$particle, 만나서 반가워! 😊'),
           const Spacer(),
-          _buildCharacter(size: 140),
+          _buildCharacter(size: 180),
           const Spacer(),
         ],
       ),
@@ -629,7 +604,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           const SizedBox(height: 20),
           _buildSpeechBubble('$displayName$particle,\n나한테 선물 하나만 골라줘!'),
           const SizedBox(height: 16),
-          _buildCharacter(size: 120, overrideImage: currentImage),
+          _buildCharacter(size: 160, overrideImage: currentImage),
           const SizedBox(height: 16),
           Wrap(
             alignment: WrapAlignment.center,
@@ -718,19 +693,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         children: [
           const SizedBox(height: 20),
           _buildSpeechBubble(
-            '부모님께도 매주 $displayName$particle 언어\n발달 소식을 알려드릴게!\n부모님이 정말 좋아하실 거야! 😊',
+            '부모님께도 매주 $displayName$particle \n발달 소식을 알려드릴게!\n부모님이 정말 좋아하실 거야! 😊',
           ),
           const Spacer(),
-          _buildCharacter(size: 140, overrideImage: finalImage),
+          _buildCharacter(size: 180, overrideImage: finalImage),
           const Spacer(),
-          const Text(
-            '처음에 입력된 부모님 번호로 소식을 보내드릴게!',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSub,
-            ),
-          ),
           const SizedBox(height: 16),
         ],
       ),

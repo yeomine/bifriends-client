@@ -21,62 +21,66 @@ class GuardianMissionSheet extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 4),
-          _buildSectionLabel(icon: Icons.crop_square, label: '아이에게 건넬 칭찬 멘트'),
-          const SizedBox(height: 10),
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              _buildMissionCard(
-                child: Text(
-                  mission.praisePhrase,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textMain,
-                    height: 1.6,
-                  ),
-                ),
-              ),
-              Positioned(
-                top: -12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'RECOMMENDED',
+          if (!mission.isReady) ...[
+            const SizedBox(height: 16),
+            Center(
+              child: Column(
+                children: [
+                  const Icon(Icons.hourglass_empty_rounded, size: 44, color: AppColors.textSub),
+                  const SizedBox(height: 16),
+                  const Text(
+                    '미션이 아직 준비되지 않았어요',
                     style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: 0.8,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textMain,
                     ),
                   ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          _buildSectionLabel(icon: Icons.adjust, label: '함께하면 좋은 활동'),
-          const SizedBox(height: 10),
-          _buildMissionCard(
-            child: Text(
-              mission.activitySuggestion,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textMain,
-                height: 1.7,
+                  const SizedBox(height: 8),
+                  const Text(
+                    '리포트 생성 후 잠시 기다리면 미션이 만들어져요!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSub,
+                      height: 1.6,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 28),
+            const SizedBox(height: 32),
+          ] else ...[
+            _buildSectionLabel(icon: Icons.crop_square, label: '아이에게 건넬 칭찬 멘트'),
+            const SizedBox(height: 10),
+            _buildMissionCard(
+              child: Text(
+                mission.praisePhrase,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textMain,
+                  height: 1.6,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            _buildSectionLabel(icon: Icons.adjust, label: '함께하면 좋은 활동'),
+            const SizedBox(height: 10),
+            _buildMissionCard(
+              child: Text(
+                mission.activitySuggestion,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMain,
+                  height: 1.7,
+                ),
+              ),
+            ),
+            const SizedBox(height: 28),
+          ],
           SafeArea(
             top: false,
             child: Padding(

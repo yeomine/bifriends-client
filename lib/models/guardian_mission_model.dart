@@ -9,8 +9,10 @@ class GuardianMission {
 
   factory GuardianMission.fromJson(Map<String, dynamic> json) {
     return GuardianMission(
-      praisePhrase: json['praise'] as String,
-      activitySuggestion: json['mission'] as String,
+      praisePhrase: json['praise'] as String? ?? '',
+      activitySuggestion: json['mission'] as String? ?? '',
     );
   }
+
+  bool get isReady => praisePhrase.isNotEmpty || activitySuggestion.isNotEmpty;
 }

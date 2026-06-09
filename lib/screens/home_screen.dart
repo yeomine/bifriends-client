@@ -10,6 +10,7 @@ import '../services/member_service.dart';
 import '../services/home_service.dart';
 import '../theme/app_colors.dart';
 import 'closet_screen.dart';
+import 'learning_screen.dart';
 import 'mode_selection_screen.dart';
 import 'my_info_screen.dart';
 
@@ -24,6 +25,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _userName = '친구';
+  int? _memberId;
   String _greetingMessage = '';
   int _consecutiveDays = 0;
   int _currentLevel = 1;
@@ -96,6 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final member = await _memberService.getMe();
       if (mounted) {
         setState(() {
+          _memberId = member.id;
           // Home API 실패 시 fallback으로 이름 설정
           if (_userName == '친구') {
             _userName = member.nickname ?? member.name;
@@ -228,7 +231,18 @@ class _HomeScreenState extends State<HomeScreen> {
       _completeTodoSafely(todo);
     }
 
-    if (todo.targetTabIndex != null) {
+    if (todo.learningType != null) {
+      final ismath = todo.learningType == LearningType.MATH;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LearningRoadmapScreen(
+            title: ismath ? '생각하는 힘 키우기' : '말하는 힘 키우기',
+            subject: ismath ? 'math' : 'korean',
+          ),
+        ),
+      );
+    } else if (todo.targetTabIndex != null) {
       widget.onNavigateToTab?.call(todo.targetTabIndex!);
     }
   }
@@ -264,7 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final saved = await _homeService.createTodo(
         title: title,
-        estimatedMinutes: estimatedMinutes,
+        memberId: _memberId,
       );
       if (mounted) {
         setState(() {
@@ -318,8 +332,8 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _todos.removeAt(idx));
 
     try {
-      if (todo.id != null) {
-        await _homeService.deleteTodo(todo.id!);
+      if (todo.id != null && _memberId != null) {
+        await _homeService.deleteTodo(todo.id!, memberId: _memberId!);
       }
     } catch (_) {
       // BE 미구현 구간에서는 로컬 삭제 유지
@@ -578,28 +592,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    const Icon(
-                      Icons.checkroom,
-                      color: AppColors.textSub,
-                      size: 32,
-                    ),
-                    Positioned(
-                      right: 12,
-                      top: 12,
-                      child: Container(
-                        width: 14,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF00D150),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                      ),
-                    ),
-                  ],
+                child: const Icon(
+                  Icons.checkroom,
+                  color: AppColors.textSub,
+                  size: 32,
                 ),
               ),
             ),
@@ -812,7 +808,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${todo.title} ${todo.emoji}',
+                    todo.title,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
@@ -853,6 +849,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: Icons.edit_outlined,
                 onTap: () => _showTodoSheet(existing: todo),
               ),
+            ],
+            if (todo.canDelete) ...[
               const SizedBox(width: 2),
               _buildTodoAction(
                 icon: Icons.delete_outline,

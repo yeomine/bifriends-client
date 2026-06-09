@@ -2,8 +2,10 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../models/learning_model.dart';
+import '../models/member_model.dart';
 import '../screens/learning_activity_screen.dart';
 import '../services/math_learning_service.dart';
+import '../services/member_service.dart';
 import '../theme/app_colors.dart';
 
 enum LevelStatus { completed, current, locked }
@@ -42,8 +44,10 @@ class LearningRoadmap extends StatefulWidget {
 class _LearningRoadmapState extends State<LearningRoadmap> {
   List<StepSummaryResponse> _steps = [];
   bool _loaded = false;
+  int _grade = 3;
   final ScrollController _scrollController = ScrollController();
   final MathLearningService _service = MathLearningService();
+  final MemberService _memberService = MemberService();
 
   @override
   void initState() {
@@ -58,17 +62,16 @@ class _LearningRoadmapState extends State<LearningRoadmap> {
   }
 
   Future<void> _loadProgress() async {
-    try {
-      final roadmap = await _service.getRoadmap();
-      if (!mounted) return;
-      setState(() {
-        _steps = roadmap.steps;
-        _loaded = true;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _loaded = true);
-    }
+    final results = await Future.wait([
+      _service.getRoadmap().then<List<StepSummaryResponse>>((r) => r.steps).catchError((_) => <StepSummaryResponse>[]),
+      _memberService.getMe().then<Member>((m) => m).catchError((_) => Member(email: '', name: '', notificationEnabled: false, microphoneEnabled: false, onboardingCompleted: false)),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _steps = results[0] as List<StepSummaryResponse>;
+      _grade = ((results[1] as Member).grade) ?? 3;
+      _loaded = true;
+    });
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _scrollToCurrentLevel(),
     );
@@ -226,12 +229,14 @@ class _LearningRoadmapState extends State<LearningRoadmap> {
                   builder: (_) => LearningActivityScreen(
                     levelData: level,
                     initialStep: initialStep,
+                    grade: _grade,
                     onStepCompleted: level.status != LevelStatus.locked
                         ? _loadProgress
                         : null,
                   ),
                 ),
               );
+              _loadProgress();
             },
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
