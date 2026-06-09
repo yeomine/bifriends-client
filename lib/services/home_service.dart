@@ -56,17 +56,13 @@ class HomeService {
   Future<void> updateTodo({
     required String todoId,
     required String title,
-    required int estimatedMinutes,
   }) async {
     final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/todos/$todoId');
     final headers = await _getHeaders();
     final response = await http.patch(
       url,
       headers: headers,
-      body: jsonEncode({
-        'title': title,
-        'estimatedTimeSec': estimatedMinutes * 60,
-      }),
+      body: jsonEncode({'title': title}),
     );
     if (response.statusCode != 200) {
       throw Exception('할 일 수정 실패: ${response.statusCode}');

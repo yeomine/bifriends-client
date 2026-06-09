@@ -10,7 +10,7 @@ class GuardianMission {
   factory GuardianMission.fromJson(Map<String, dynamic> json) {
     return GuardianMission(
       praisePhrase: json['praise'] as String? ?? '',
-      activitySuggestion: json['mission'] as String? ?? '',
+      activitySuggestion: json['activity'] as String? ?? '',
     );
   }
 

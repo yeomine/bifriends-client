@@ -254,23 +254,22 @@ class _HomeScreenState extends State<HomeScreen> {
       isScrollControlled: true,
       builder: (ctx) => _TodoSheet(
         existing: existing,
-        onSave: (title, minutes) async {
+        onSave: (title) async {
           Navigator.pop(ctx);
           if (existing == null) {
-            await _createTodo(title, minutes);
+            await _createTodo(title);
           } else {
-            await _updateTodo(existing, title, minutes);
+            await _updateTodo(existing, title);
           }
         },
       ),
     );
   }
 
-  Future<void> _createTodo(String title, int estimatedMinutes) async {
+  Future<void> _createTodo(String title) async {
     final localTodo = TodoItem(
       title: title,
       emoji: '',
-      estimatedMinutes: estimatedMinutes,
       source: TodoSource.USER,
     );
     setState(() => _todos.add(localTodo));
@@ -291,17 +290,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _updateTodo(
-    TodoItem todo,
-    String title,
-    int estimatedMinutes,
-  ) async {
+  Future<void> _updateTodo(TodoItem todo, String title) async {
     final idx = _todos.indexOf(todo);
     final updated = TodoItem(
       id: todo.id,
       title: title,
       emoji: todo.emoji,
-      estimatedMinutes: estimatedMinutes,
       isCompleted: todo.isCompleted,
       source: TodoSource.USER,
     );
@@ -309,11 +303,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       if (todo.id != null) {
-        await _homeService.updateTodo(
-          todoId: todo.id!,
-          title: title,
-          estimatedMinutes: estimatedMinutes,
-        );
+        await _homeService.updateTodo(todoId: todo.id!, title: title);
       }
     } catch (_) {
       // BE 미구현 구간에서는 로컬 변경 유지
@@ -821,25 +811,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       decorationColor: AppColors.textSub,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.schedule,
-                        size: 12,
-                        color: AppColors.textSub,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '약 ${todo.estimatedMinutes}분 소요',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textSub,
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),
@@ -886,7 +857,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _TodoSheet extends StatefulWidget {
   final TodoItem? existing;
-  final void Function(String title, int estimatedMinutes) onSave;
+  final void Function(String title) onSave;
 
   const _TodoSheet({this.existing, required this.onSave});
 
@@ -896,7 +867,6 @@ class _TodoSheet extends StatefulWidget {
 
 class _TodoSheetState extends State<_TodoSheet> {
   late final TextEditingController _titleController;
-  late int _minutes;
 
   @override
   void initState() {
@@ -904,7 +874,6 @@ class _TodoSheetState extends State<_TodoSheet> {
     _titleController = TextEditingController(
       text: widget.existing?.title ?? '',
     );
-    _minutes = widget.existing?.estimatedMinutes ?? 5;
   }
 
   @override
@@ -969,51 +938,12 @@ class _TodoSheetState extends State<_TodoSheet> {
                 onChanged: (_) => setState(() {}),
               ),
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                const Icon(Icons.schedule, size: 16, color: AppColors.textSub),
-                const SizedBox(width: 8),
-                const Text(
-                  '예상 시간',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textMain,
-                  ),
-                ),
-                const Spacer(),
-                _StepperButton(
-                  icon: Icons.remove,
-                  onTap: _minutes > 1 ? () => setState(() => _minutes--) : null,
-                ),
-                SizedBox(
-                  width: 52,
-                  child: Text(
-                    '$_minutes분',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textMain,
-                    ),
-                  ),
-                ),
-                _StepperButton(
-                  icon: Icons.add,
-                  onTap: _minutes < 60
-                      ? () => setState(() => _minutes++)
-                      : null,
-                ),
-              ],
-            ),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: canSave
-                    ? () =>
-                          widget.onSave(_titleController.text.trim(), _minutes)
+                    ? () => widget.onSave(_titleController.text.trim())
                     : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
@@ -1041,32 +971,6 @@ class _TodoSheetState extends State<_TodoSheet> {
   }
 }
 
-class _StepperButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  const _StepperButton({required this.icon, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: onTap != null ? AppColors.cardLight : AppColors.borderLight,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          size: 18,
-          color: onTap != null ? AppColors.textMain : AppColors.textSub,
-        ),
-      ),
-    );
-  }
-}
 
 class _DeleteConfirmDialog extends StatelessWidget {
   final String todoTitle;

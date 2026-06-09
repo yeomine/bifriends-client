@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import '../models/growth_report_model.dart';
+import '../models/guardian_mission_model.dart';
+import '../services/auth_service.dart';
 import '../services/report_service.dart';
 import '../services/member_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/guardian_mission_sheet.dart';
+import 'login_screen.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({super.key});
@@ -17,6 +20,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
 
   final _reportService = ReportService();
   final _memberService = MemberService();
+  final _authService = AuthService();
 
   List<ReportSummary> _summaries = [];
   ReportDetail? _detail;
@@ -26,7 +30,6 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
 
   bool _isListLoading = true;
   bool _isDetailLoading = false;
-  bool _isMissionLoading = false;
   bool _isGenerating = false;
   bool _showingHistory = false;
 
@@ -174,40 +177,144 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     _fetchDetail(reportId);
   }
 
-  Future<void> _onMissionTap() async {
-    if (_summaries.isEmpty || _isMissionLoading) return;
+  void _onMissionTap() {
+    if (_summaries.isEmpty) return;
+    final mission = _detail?.parentMission ??
+        const GuardianMission(praisePhrase: '', activitySuggestion: '');
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => GuardianMissionSheet(mission: mission),
+    );
+  }
 
-    // 이미 detail에 미션이 포함된 경우 바로 시트 표시
-    if (_detail?.parentMission != null) {
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: Colors.transparent,
-        isScrollControlled: true,
-        builder: (_) => GuardianMissionSheet(mission: _detail!.parentMission!),
-      );
-      return;
-    }
+  void _showAccountSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.borderLight,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            _buildAccountTile(
+              icon: Icons.logout,
+              label: '로그아웃',
+              color: AppColors.textMain,
+              onTap: () async {
+                Navigator.pop(context);
+                await _authService.signOut();
+                if (mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (_) => false,
+                  );
+                }
+              },
+            ),
+            const SizedBox(height: 8),
+            _buildAccountTile(
+              icon: Icons.person_remove_outlined,
+              label: '회원 탈퇴',
+              color: const Color(0xFFE53935),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmDeleteAccount();
+              },
+            ),
+            SafeArea(top: false, child: const SizedBox(height: 16)),
+          ],
+        ),
+      ),
+    );
+  }
 
-    setState(() => _isMissionLoading = true);
-    try {
-      final reportId = _summaries[_selectedIndex].reportId;
-      final mission = await _reportService.getParentMission(reportId);
-      if (!mounted) return;
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: Colors.transparent,
-        isScrollControlled: true,
-        builder: (_) => GuardianMissionSheet(mission: mission),
-      );
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('미션을 불러오는 데 실패했어요. 다시 시도해 주세요.')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isMissionLoading = false);
-    }
+  Widget _buildAccountTile({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(width: 14),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteAccount() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          '회원 탈퇴',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: const Text(
+          '탈퇴하면 모든 데이터가 삭제되며\n복구할 수 없어요. 정말 탈퇴할까요?',
+          style: TextStyle(height: 1.6),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소', style: TextStyle(color: AppColors.textSub)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _authService.deleteAccount();
+              if (mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (_) => false,
+                );
+              }
+            },
+            child: const Text(
+              '탈퇴하기',
+              style: TextStyle(color: Color(0xFFE53935), fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -268,7 +375,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
             color: AppColors.textMain,
             size: 24,
           ),
-          onPressed: () {},
+          onPressed: () => _showAccountSheet(),
         ),
       ],
     );
@@ -564,21 +671,37 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
             ],
           ),
           const SizedBox(height: 14),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF4F6FA),
-              borderRadius: BorderRadius.circular(12),
-            ),
+          if (subject.wellDone.isNotEmpty) ...[
+            _buildSubjectRow(icon: Icons.thumb_up_outlined, color: const Color(0xFF4CAF50), label: '잘한 점', text: subject.wellDone),
+            const SizedBox(height: 10),
+          ],
+          if (subject.struggled.isNotEmpty) ...[
+            _buildSubjectRow(icon: Icons.flag_outlined, color: const Color(0xFFF07D4F), label: '아쉬운 점', text: subject.struggled),
+          ],
+          if (subject.wellDone.isEmpty && subject.struggled.isEmpty)
+            Text('아직 데이터가 없어요.', style: TextStyle(fontSize: 14, color: AppColors.textSub, height: 1.6)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubjectRow({required IconData icon, required Color color, required String label, required String text}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F6FA),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Expanded(
             child: Text(
-              subject.summary.isNotEmpty ? subject.summary : '아직 데이터가 없어요.',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: subject.summary.isNotEmpty ? AppColors.textMain : AppColors.textSub,
-                height: 1.6,
-              ),
+              text,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textMain, height: 1.6),
             ),
           ),
         ],
@@ -705,7 +828,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
         (_summaries.isNotEmpty && _summaries[_selectedIndex].hasMission);
 
     return ElevatedButton(
-      onPressed: _isMissionLoading ? null : _onMissionTap,
+      onPressed: _onMissionTap,
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
         disabledBackgroundColor: AppColors.primaryDisabled,
@@ -715,16 +838,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
         elevation: 4,
         shadowColor: Colors.black.withValues(alpha: 0.2),
       ),
-      child: _isMissionLoading
-          ? const SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 2,
-              ),
-            )
-          : Row(
+      child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(Icons.card_giftcard, size: 20),
@@ -905,7 +1019,6 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                           ),
                           const SizedBox(height: 16),
                           ..._detail!.learningStatus.all
-                              .where((s) => s.key != 'emotion')
                               .map(
                                 (s) => Padding(
                                   padding: const EdgeInsets.only(bottom: 16),

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/member_model.dart';
 import '../services/member_service.dart';
 import '../theme/app_colors.dart';
+import 'login_screen.dart';
 import 'main_scaffold.dart';
 import 'parent_mode_auth_screen.dart';
 
@@ -37,12 +38,18 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error fetching user info: $e');
       if (mounted) {
-        setState(() {
-          _errorMessage = '정보를 불러오는데 실패했어요.\n$e';
-          _isLoading = false;
-        });
+        if (e.toString().contains('401')) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+          );
+        } else {
+          setState(() {
+            _errorMessage = '정보를 불러오는데 실패했어요.\n$e';
+            _isLoading = false;
+          });
+        }
       }
     }
   }

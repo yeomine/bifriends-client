@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/learning_model.dart';
 import '../services/korean_learning_service.dart';
 import '../services/math_learning_service.dart';
@@ -35,6 +36,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
   int _hintsShown = 0;
   String? _selectedChoice;
   bool _showWrongFeedback = false;
+  bool _showWrongOverlay = false;
   bool _showSuccessOverlay = false;
   bool _isLastStepCompleted = false;
   bool _isValidating = false;
@@ -193,15 +195,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
   void _onConfirmLocal() {
     if (!_isCurrentAnswerCorrectLocal &&
         _currentCycle.type == CycleType.choice) {
-      setState(() => _showWrongFeedback = true);
-      Future.delayed(const Duration(milliseconds: 700), () {
-        if (mounted) {
-          setState(() {
-            _showWrongFeedback = false;
-            _selectedChoice = null;
-          });
-        }
-      });
+      setState(() => _showWrongOverlay = true);
       return;
     }
     _advanceContent();
@@ -243,15 +237,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
       setState(() => _isValidating = false);
 
       if (!result.correct) {
-        setState(() => _showWrongFeedback = true);
-        Future.delayed(const Duration(milliseconds: 700), () {
-          if (mounted) {
-            setState(() {
-              _showWrongFeedback = false;
-              _selectedChoice = null;
-            });
-          }
-        });
+        setState(() => _showWrongOverlay = true);
         return;
       }
       _advanceContent();
@@ -330,6 +316,20 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
               ],
             ),
           ),
+          if (_showWrongOverlay)
+            Positioned.fill(
+              child: _WrongAnswerOverlay(
+                onRetry: () {
+                  setState(() {
+                    _showWrongOverlay = false;
+                    _showWrongFeedback = false;
+                    _selectedChoice = null;
+                    _answerController.clear();
+                    _denominatorController.clear();
+                  });
+                },
+              ),
+            ),
           if (_showSuccessOverlay)
             Positioned.fill(
               child: _StepCompletionOverlay(
@@ -346,7 +346,8 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
     if (image.isEmpty) return '';
     if (image.startsWith('assets/')) return image;
     final folder = widget.subject == 'korean' ? 'study_korean' : 'study_math';
-    final filename = (widget.subject == 'math' && !RegExp(r'^g\d_').hasMatch(image))
+    final filename =
+        (widget.subject == 'math' && !RegExp(r'^g\d_').hasMatch(image))
         ? 'g${widget.grade}_$image'
         : image;
     return 'assets/images/$folder/grade${widget.grade}/$filename';
@@ -460,12 +461,14 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
           if (_resolveConceptImagePath(slide.image).isNotEmpty)
             ClipRRect(
               borderRadius: BorderRadius.circular(28),
-              child: Image.asset(
-                _resolveConceptImagePath(slide.image),
-                width: double.infinity,
-                height: 200,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: Image.asset(
+                  _resolveConceptImagePath(slide.image),
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
               ),
             ),
           const SizedBox(height: 28),
@@ -515,7 +518,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
               ],
             ),
             child: RichInlineText(
-              spans: q.questionSpans,
+              spans: _splitAtPeriods(q.questionSpans),
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
@@ -570,8 +573,8 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
     final textColor = showWrong
         ? const Color(0xFFE57373)
         : isSelected
-            ? AppColors.primary
-            : AppColors.textMain;
+        ? AppColors.primary
+        : AppColors.textMain;
 
     return GestureDetector(
       onTap: () => _onChoiceTap(tapKey),
@@ -587,8 +590,11 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: (showWrong ? const Color(0xFFE57373) : AppColors.primary)
-                        .withValues(alpha: 0.15),
+                    color:
+                        (showWrong
+                                ? const Color(0xFFE57373)
+                                : AppColors.primary)
+                            .withValues(alpha: 0.15),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
@@ -608,11 +614,19 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
           Expanded(
             child: Text(
               option,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: textColor),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+              ),
             ),
           ),
           if (showWrong)
-            const Icon(Icons.cancel_rounded, color: Color(0xFFE57373), size: 22),
+            const Icon(
+              Icons.cancel_rounded,
+              color: Color(0xFFE57373),
+              size: 22,
+            ),
         ],
       ),
     );
@@ -623,17 +637,40 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
       tapKey: f.key,
       builder: (textColor, showWrong) => Row(
         children: [
-          FractionWidget(numerator: f.numerator, denominator: f.denominator, color: textColor),
+          FractionWidget(
+            numerator: f.numerator,
+            denominator: f.denominator,
+            color: textColor,
+          ),
           if (f.unit != null) ...[
             const SizedBox(width: 4),
-            Text(f.unit!, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: textColor)),
+            Text(
+              f.unit!,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+              ),
+            ),
           ],
           const Spacer(),
           if (showWrong)
-            const Icon(Icons.cancel_rounded, color: Color(0xFFE57373), size: 22),
+            const Icon(
+              Icons.cancel_rounded,
+              color: Color(0xFFE57373),
+              size: 22,
+            ),
         ],
       ),
     );
+  }
+
+  List<RichSpan> _splitAtPeriods(List<RichSpan> spans) {
+    return spans.map((span) {
+      if (span is PlainSpan)
+        return PlainSpan(span.value.replaceAll('. ', '.\n'));
+      return span;
+    }).toList();
   }
 
   // ── Short answer question ─────────────────────────────────────────────────
@@ -674,7 +711,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
               ],
             ),
             child: RichInlineText(
-              spans: q.questionSpans,
+              spans: _splitAtPeriods(q.questionSpans),
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
@@ -1259,4 +1296,118 @@ class _ConfettiParticle {
     required this.size,
     required this.rotationSpeed,
   });
+}
+
+class _WrongAnswerOverlay extends StatefulWidget {
+  final VoidCallback onRetry;
+
+  const _WrongAnswerOverlay({required this.onRetry});
+
+  @override
+  State<_WrongAnswerOverlay> createState() => _WrongAnswerOverlayState();
+}
+
+class _WrongAnswerOverlayState extends State<_WrongAnswerOverlay>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _opacity;
+  late Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _opacity = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _scale = Tween<double>(
+      begin: 0.7,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.elasticOut));
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFFFF8F0),
+      child: SafeArea(
+        child: Center(
+          child: FadeTransition(
+            opacity: _opacity,
+            child: ScaleTransition(
+              scale: _scale,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      'assets/images/leo_cryingface.png',
+                      width: 120,
+                      height: 120,
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      '다시 한번\n도전해보자!',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.gaegu(
+                        fontSize: 36,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMain,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      '틀려도 괜찮아, 다시 하면 돼! 💪',
+                      style: GoogleFonts.gaegu(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textSub,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 48),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 60,
+                      child: ElevatedButton(
+                        onPressed: widget.onRetry,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          '다시 풀기',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -165,7 +165,6 @@ class TodoResponse {
   final String type;
   final String title;
   final TodoStatus status;
-  final int estimatedTimeSec;
   final TodoSource source;
   final LearningType? learningType;
   final String assignedDate;
@@ -177,7 +176,6 @@ class TodoResponse {
     required this.type,
     required this.title,
     required this.status,
-    required this.estimatedTimeSec,
     required this.source,
     this.learningType,
     required this.assignedDate,
@@ -209,7 +207,6 @@ class TodoResponse {
       type: json['type'] as String? ?? '',
       title: json['title'] as String? ?? '',
       status: status,
-      estimatedTimeSec: json['estimatedTimeSec'] as int? ?? 300,
       source: source,
       learningType: learningType,
       assignedDate: json['assignedDate'] as String? ?? '',

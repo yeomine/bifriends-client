@@ -108,6 +108,20 @@ class AuthService {
     await _storage.delete(key: 'refreshToken');
   }
 
+  Future<void> deleteAccount() async {
+    final token = await _storage.read(key: 'accessToken');
+    if (token != null) {
+      await http.delete(
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/members/me'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+    }
+    await signOut();
+  }
+
   Future<String?> getAccessToken() async {
     return await _storage.read(key: 'accessToken');
   }
