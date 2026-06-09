@@ -85,6 +85,14 @@ flutter:
     - assets/images/fallback/속상함/
     - assets/images/fallback/실망/
     - assets/images/fallback/화남/
+    - assets/images/study_math/grade3/
+    - assets/images/study_math/grade4/
+    - assets/images/study_math/grade5/
+    - assets/images/study_math/grade6/
+    - assets/images/study_korean/grade3/
+    - assets/images/study_korean/grade4/
+    - assets/images/study_korean/grade5/
+    - assets/images/study_korean/grade6/
     - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see
