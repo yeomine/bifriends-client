@@ -780,79 +780,78 @@ class _PurchaseSuccessSheet extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.all(16),
       padding: EdgeInsets.fromLTRB(24, 28, 24, 32 + bottomInset),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.all(Radius.circular(28)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: const BoxDecoration(
-                color: Color(0xFFE5EDD6),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_rounded,
-                color: AppColors.primary,
-                size: 28,
-              ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.all(Radius.circular(28)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: const BoxDecoration(
+              color: Color(0xFFE5EDD6),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(height: 14),
-            const Text(
-              '구매 완료!',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textMain,
-              ),
+            child: const Icon(
+              Icons.check_rounded,
+              color: AppColors.primary,
+              size: 28,
             ),
-            const SizedBox(height: 4),
-            Text(
-              '${item.name}을(를) 얻었어요',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textSub,
-              ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            '구매 완료!',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textMain,
             ),
-            const SizedBox(height: 20),
-            Image.asset(item.localAssetPath, height: 110, fit: BoxFit.contain),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: onEquip,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 0,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${item.name}을(를) 얻었어요',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSub,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Image.asset(item.localAssetPath, height: 110, fit: BoxFit.contain),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: onEquip,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Text(
-                  '지금 바로 착용하기',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
+                elevation: 0,
               ),
-            ),
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: onClose,
               child: const Text(
-                '나중에',
-                style: TextStyle(fontSize: 15, color: AppColors.textSub),
+                '지금 바로 착용하기',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 10),
+          TextButton(
+            onPressed: onClose,
+            child: const Text(
+              '나중에',
+              style: TextStyle(fontSize: 15, color: AppColors.textSub),
+            ),
+          ),
+        ],
       ),
     );
   }
