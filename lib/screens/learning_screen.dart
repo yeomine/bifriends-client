@@ -48,7 +48,7 @@ class LearningScreen extends StatelessWidget {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const _RoadmapScreen(
+                            builder: (_) => const LearningRoadmapScreen(
                               title: '생각하는 힘 키우기',
                               subject: 'math',
                             ),
@@ -68,7 +68,7 @@ class LearningScreen extends StatelessWidget {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const _RoadmapScreen(
+                            builder: (_) => const LearningRoadmapScreen(
                               title: '말하는 힘 키우기',
                               subject: 'korean',
                             ),
@@ -169,8 +169,8 @@ class _CategoryCard extends StatelessWidget {
   }
 }
 
-class _RoadmapScreen extends StatelessWidget {
-  const _RoadmapScreen({required this.title, required this.subject});
+class LearningRoadmapScreen extends StatelessWidget {
+  const LearningRoadmapScreen({required this.title, required this.subject});
 
   final String title;
   final String subject;

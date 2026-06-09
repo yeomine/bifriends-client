@@ -12,6 +12,7 @@ class LearningActivityScreen extends StatefulWidget {
   final int initialStep;
   final VoidCallback? onStepCompleted;
   final String subject;
+  final int grade;
 
   const LearningActivityScreen({
     super.key,
@@ -19,6 +20,7 @@ class LearningActivityScreen extends StatefulWidget {
     this.initialStep = 1,
     this.onStepCompleted,
     this.subject = 'math',
+    this.grade = 3,
   });
 
   @override
@@ -341,6 +343,32 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
     );
   }
 
+  String _resolveConceptImagePath(String image) {
+    if (image.isEmpty) return '';
+    if (image.startsWith('assets/')) return image;
+
+    // math: "g3_step1_concept_01.png" → grade extracted from filename
+    final mathMatch = RegExp(r'^g(\d)_').firstMatch(image);
+    if (mathMatch != null) {
+      final grade = mathMatch.group(1);
+      return 'assets/images/study_math/grade$grade/$image';
+    }
+
+    // korean passage: "passage_grade3_step1.png"
+    final passageMatch = RegExp(r'^passage_grade(\d)_').firstMatch(image);
+    if (passageMatch != null) {
+      final grade = passageMatch.group(1);
+      return 'assets/images/study_korean/grade$grade/$image';
+    }
+
+    // korean word: "word_jururuk.png" → use user's grade folder
+    if (image.startsWith('word_')) {
+      return 'assets/images/study_korean/grade${widget.grade}/$image';
+    }
+
+    return '';
+  }
+
   Widget _buildTopBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -446,17 +474,17 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 44),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0F8ED),
+          if (_resolveConceptImagePath(slide.image).isNotEmpty)
+            ClipRRect(
               borderRadius: BorderRadius.circular(28),
+              child: Image.asset(
+                _resolveConceptImagePath(slide.image),
+                width: double.infinity,
+                height: 200,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
             ),
-            child: Center(
-              child: Text(slide.image, style: const TextStyle(fontSize: 72)),
-            ),
-          ),
           const SizedBox(height: 28),
           RichInlineText(
             spans: slide.spans,
