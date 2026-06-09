@@ -144,47 +144,33 @@ class LearningPattern {
 }
 
 class SubjectSummary {
-  final String key; // 'math', 'korean', 'emotion'
-  final String summary;
+  final String key; // 'math', 'korean'
+  final String wellDone;
+  final String struggled;
 
-  const SubjectSummary({required this.key, required this.summary});
+  const SubjectSummary({required this.key, required this.wellDone, required this.struggled});
 
   String get displayName {
     switch (key) {
-      case 'math':
-        return '수학';
-      case 'korean':
-        return '국어';
-      case 'emotion':
-        return '감정';
-      default:
-        return key;
+      case 'math': return '수학';
+      case 'korean': return '국어';
+      default: return key;
     }
   }
 
   IconData get icon {
     switch (key) {
-      case 'math':
-        return Icons.gps_fixed;
-      case 'korean':
-        return Icons.menu_book;
-      case 'emotion':
-        return Icons.favorite_border;
-      default:
-        return Icons.school_outlined;
+      case 'math': return Icons.gps_fixed;
+      case 'korean': return Icons.menu_book;
+      default: return Icons.school_outlined;
     }
   }
 
   Color get color {
     switch (key) {
-      case 'math':
-        return const Color(0xFFE07070);
-      case 'korean':
-        return const Color(0xFF5B9BD5);
-      case 'emotion':
-        return AppColors.primary;
-      default:
-        return AppColors.textSub;
+      case 'math': return const Color(0xFFE07070);
+      case 'korean': return const Color(0xFF5B9BD5);
+      default: return AppColors.textSub;
     }
   }
 }
@@ -192,26 +178,21 @@ class SubjectSummary {
 class LearningStatus {
   final SubjectSummary math;
   final SubjectSummary korean;
-  final SubjectSummary emotion;
 
-  const LearningStatus({
-    required this.math,
-    required this.korean,
-    required this.emotion,
-  });
+  const LearningStatus({required this.math, required this.korean});
 
-  List<SubjectSummary> get all => [korean, math, emotion];
+  List<SubjectSummary> get all => [korean, math];
 
   factory LearningStatus.fromJson(Map<String, dynamic> json) {
-    SubjectSummary parse(String key) => SubjectSummary(
-      key: key,
-      summary: (json[key] as Map<String, dynamic>?)?['summary'] as String? ?? '',
-    );
-    return LearningStatus(
-      math: parse('math'),
-      korean: parse('korean'),
-      emotion: parse('emotion'),
-    );
+    SubjectSummary parse(String key) {
+      final m = json[key] as Map<String, dynamic>?;
+      return SubjectSummary(
+        key: key,
+        wellDone: m?['well_done'] as String? ?? '',
+        struggled: m?['struggled'] as String? ?? '',
+      );
+    }
+    return LearningStatus(math: parse('math'), korean: parse('korean'));
   }
 }
 

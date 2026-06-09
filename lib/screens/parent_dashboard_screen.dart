@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/growth_report_model.dart';
+import '../models/guardian_mission_model.dart';
 import '../services/auth_service.dart';
 import '../services/report_service.dart';
 import '../services/member_service.dart';
@@ -29,7 +30,6 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
 
   bool _isListLoading = true;
   bool _isDetailLoading = false;
-  bool _isMissionLoading = false;
   bool _isGenerating = false;
   bool _showingHistory = false;
 
@@ -177,40 +177,16 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     _fetchDetail(reportId);
   }
 
-  Future<void> _onMissionTap() async {
-    if (_summaries.isEmpty || _isMissionLoading) return;
-
-    // 이미 detail에 미션이 포함된 경우 바로 시트 표시
-    if (_detail?.parentMission != null) {
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: Colors.transparent,
-        isScrollControlled: true,
-        builder: (_) => GuardianMissionSheet(mission: _detail!.parentMission!),
-      );
-      return;
-    }
-
-    setState(() => _isMissionLoading = true);
-    try {
-      final reportId = _summaries[_selectedIndex].reportId;
-      final mission = await _reportService.getParentMission(reportId);
-      if (!mounted) return;
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: Colors.transparent,
-        isScrollControlled: true,
-        builder: (_) => GuardianMissionSheet(mission: mission),
-      );
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('미션을 불러오는 데 실패했어요. 다시 시도해 주세요.')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isMissionLoading = false);
-    }
+  void _onMissionTap() {
+    if (_summaries.isEmpty) return;
+    final mission = _detail?.parentMission ??
+        const GuardianMission(praisePhrase: '', activitySuggestion: '');
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => GuardianMissionSheet(mission: mission),
+    );
   }
 
   void _showAccountSheet() {
@@ -695,21 +671,37 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
             ],
           ),
           const SizedBox(height: 14),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF4F6FA),
-              borderRadius: BorderRadius.circular(12),
-            ),
+          if (subject.wellDone.isNotEmpty) ...[
+            _buildSubjectRow(icon: Icons.thumb_up_outlined, color: const Color(0xFF4CAF50), label: '잘한 점', text: subject.wellDone),
+            const SizedBox(height: 10),
+          ],
+          if (subject.struggled.isNotEmpty) ...[
+            _buildSubjectRow(icon: Icons.flag_outlined, color: const Color(0xFFF07D4F), label: '아쉬운 점', text: subject.struggled),
+          ],
+          if (subject.wellDone.isEmpty && subject.struggled.isEmpty)
+            Text('아직 데이터가 없어요.', style: TextStyle(fontSize: 14, color: AppColors.textSub, height: 1.6)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubjectRow({required IconData icon, required Color color, required String label, required String text}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F6FA),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Expanded(
             child: Text(
-              subject.summary.isNotEmpty ? subject.summary : '아직 데이터가 없어요.',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: subject.summary.isNotEmpty ? AppColors.textMain : AppColors.textSub,
-                height: 1.6,
-              ),
+              text,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textMain, height: 1.6),
             ),
           ),
         ],
@@ -836,7 +828,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
         (_summaries.isNotEmpty && _summaries[_selectedIndex].hasMission);
 
     return ElevatedButton(
-      onPressed: _isMissionLoading ? null : _onMissionTap,
+      onPressed: _onMissionTap,
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
         disabledBackgroundColor: AppColors.primaryDisabled,
@@ -846,16 +838,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
         elevation: 4,
         shadowColor: Colors.black.withValues(alpha: 0.2),
       ),
-      child: _isMissionLoading
-          ? const SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 2,
-              ),
-            )
-          : Row(
+      child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(Icons.card_giftcard, size: 20),
@@ -1036,7 +1019,6 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                           ),
                           const SizedBox(height: 16),
                           ..._detail!.learningStatus.all
-                              .where((s) => s.key != 'emotion')
                               .map(
                                 (s) => Padding(
                                   padding: const EdgeInsets.only(bottom: 16),

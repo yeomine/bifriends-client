@@ -9,7 +9,6 @@ class GuardianMissionSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.background,
@@ -26,7 +25,11 @@ class GuardianMissionSheet extends StatelessWidget {
             Center(
               child: Column(
                 children: [
-                  const Icon(Icons.hourglass_empty_rounded, size: 44, color: AppColors.textSub),
+                  const Icon(
+                    Icons.hourglass_empty_rounded,
+                    size: 44,
+                    color: AppColors.textSub,
+                  ),
                   const SizedBox(height: 16),
                   const Text(
                     '미션이 아직 준비되지 않았어요',
