@@ -12,7 +12,8 @@ import '../theme/app_colors.dart';
 const int _cyclesPerLevel = 5;
 
 class KoreanLearningRoadmap extends StatefulWidget {
-  const KoreanLearningRoadmap({super.key});
+  final VoidCallback? onAnyStepCompleted;
+  const KoreanLearningRoadmap({super.key, this.onAnyStepCompleted});
 
   @override
   State<KoreanLearningRoadmap> createState() => _KoreanLearningRoadmapState();
@@ -206,7 +207,10 @@ class _KoreanLearningRoadmapState extends State<KoreanLearningRoadmap> {
                     subject: 'korean',
                     grade: _grade,
                     onStepCompleted: level.status != LevelStatus.locked
-                        ? _loadProgress
+                        ? () {
+                            _loadProgress();
+                            widget.onAnyStepCompleted?.call();
+                          }
                         : null,
                   ),
                 ),

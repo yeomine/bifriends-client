@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/parent_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/app_toast.dart';
 
 class ParentResetScreen extends StatefulWidget {
   const ParentResetScreen({super.key});
@@ -74,9 +75,7 @@ class _ParentResetScreenState extends State<ParentResetScreen> {
       await _parentService.resetPassword(_newPin, _confirmPin);
       if (mounted) {
         Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('비밀번호가 변경되었어요.')),
-        );
+        AppToast.show(context, '비밀번호가 변경되었어요.');
       }
     } catch (_) {
       if (mounted) {
@@ -84,9 +83,7 @@ class _ParentResetScreenState extends State<ParentResetScreen> {
           _isError = true;
           _confirmPin = '';
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('비밀번호 초기화에 실패했어요. 다시 시도해 주세요.')),
-        );
+        AppToast.show(context, '비밀번호 초기화에 실패했어요. 다시 시도해 주세요.', isError: true);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

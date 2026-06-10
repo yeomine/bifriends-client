@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/closet_model.dart';
 import '../services/closet_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/app_toast.dart';
 
 class ClosetScreen extends StatefulWidget {
   const ClosetScreen({super.key});
@@ -84,10 +85,10 @@ class _ClosetScreenState extends State<ClosetScreen> {
       debugPrint('equip error: $e');
       if (mounted) {
         setState(() => _equipped = previousEquipped);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(alreadyEquipped ? '탈착에 실패했어요.' : '착용에 실패했어요.'),
-          ),
+        AppToast.show(
+          context,
+          alreadyEquipped ? '탈착에 실패했어요.' : '착용에 실패했어요.',
+          isError: true,
         );
       }
     } finally {
@@ -130,10 +131,10 @@ class _ClosetScreenState extends State<ClosetScreen> {
   Future<void> _purchaseItem(ClosetItem item) async {
     if (_isUpdating) return;
     if (_availablePool < item.price) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('풀이 부족해요! ${item.price - _availablePool}개가 더 필요해요.'),
-        ),
+      AppToast.show(
+        context,
+        '풀이 부족해요! ${item.price - _availablePool}개가 더 필요해요.',
+        isError: true,
       );
       return;
     }
@@ -155,9 +156,7 @@ class _ClosetScreenState extends State<ClosetScreen> {
     } catch (e) {
       debugPrint('purchase error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('구매에 실패했어요. 다시 시도해 주세요.')));
+        AppToast.show(context, '구매에 실패했어요. 다시 시도해 주세요.', isError: true);
       }
     } finally {
       if (mounted) setState(() => _isUpdating = false);
@@ -244,7 +243,7 @@ class _ClosetScreenState extends State<ClosetScreen> {
         : 'assets/images/leo_default.png';
 
     return Container(
-      height: 200,
+      height: 240,
       color: AppColors.background,
       child: Stack(
         alignment: Alignment.center,
@@ -254,7 +253,7 @@ class _ClosetScreenState extends State<ClosetScreen> {
             child: Image.asset(
               assetPath,
               key: ValueKey(assetPath),
-              height: 150,
+              height: 200,
               fit: BoxFit.contain,
               errorBuilder: (_, e, s) =>
                   const Text('🦫', style: TextStyle(fontSize: 90)),
@@ -424,7 +423,7 @@ class _ClosetScreenState extends State<ClosetScreen> {
                   child: Center(
                     child: Image.asset(
                       item.localAssetPath,
-                      height: 60,
+                      height: 80,
                       fit: BoxFit.contain,
                     ),
                   ),

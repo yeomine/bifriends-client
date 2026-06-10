@@ -18,6 +18,8 @@ class MainScaffold extends StatefulWidget {
 
 class _MainScaffoldState extends State<MainScaffold> {
   int _currentIndex = 0;
+  String? _pendingChatTodoId;
+  String? _pendingEmotionTodoId;
 
   bool _isGuideTourActive = false;
   bool _isRocketPlaying = false;
@@ -31,13 +33,25 @@ class _MainScaffoldState extends State<MainScaffold> {
   List<Widget> get _screens => [
     HomeScreen(onNavigateToTab: _navigateToTab),
     const LearningScreen(),
-    const ConversationScreen(),
-    const FriendsScreen(),
+    ConversationScreen(
+      pendingTodoId: _pendingChatTodoId,
+      onTodoCompleted: () => setState(() => _pendingChatTodoId = null),
+    ),
+    FriendsScreen(
+      pendingTodoId: _pendingEmotionTodoId,
+      onTodoCompleted: () => setState(() => _pendingEmotionTodoId = null),
+    ),
   ];
 
-  void _navigateToTab(int index) {
+  void _navigateToTab(int index, {String? todoId}) {
     if (_isGuideTourActive || _isRocketPlaying) return;
-    setState(() => _currentIndex = index);
+    setState(() {
+      _currentIndex = index;
+      if (todoId != null) {
+        if (index == 2) _pendingChatTodoId = todoId;
+        if (index == 3) _pendingEmotionTodoId = todoId;
+      }
+    });
   }
 
   @override

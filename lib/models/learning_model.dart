@@ -94,23 +94,26 @@ class ConceptSlide {
   final String text;
   final List<RichSpan>? richText;
   final String confirmButtonText;
+  /// 낱말 카드 전용 — 대표 단어 (null이면 일반 개념 슬라이드)
+  final String? word;
 
   const ConceptSlide({
     required this.image,
     required this.text,
     this.richText,
     required this.confirmButtonText,
+    this.word,
   });
 
-  /// Always returns a renderable span list (falls back to plain string).
   List<RichSpan> get spans => richText ?? [PlainSpan(text)];
 
   factory ConceptSlide.fromJson(Map<String, dynamic> json) {
-    // 'description' (국어 word_card) 또는 'text' (수학 concept) 둘 다 허용
-    final raw = json['description'] ?? json['text'];
-    final rich = _parseSpans(raw ?? '');
+    final wordStr = json['word'] as String?;
+    final descStr = json['description'] ?? json['text'];
+    final rich = _parseSpans(descStr ?? wordStr ?? '');
     return ConceptSlide(
-      image: json['image'] as String? ?? '',
+      word: wordStr,
+      image: json['image'] as String? ?? json['imageUrl'] as String? ?? '',
       text: _spansToString(rich),
       richText: rich,
       confirmButtonText: json['confirm_button_text'] as String? ?? '다음',
@@ -271,11 +274,15 @@ class LearningCycle {
         'cycle_${json['cycle_number'] ?? json['cycle']}';
     final isSlideType =
         type == CycleType.concept || type == CycleType.wordCard;
+    // word_card cycles may use 'words' key instead of 'slides'
+    final rawSlides = (json['slides'] as List?) ??
+        (type == CycleType.wordCard ? json['words'] as List? : null) ??
+        [];
     return LearningCycle(
       cycleId: cycleId,
       type: type,
       slides: isSlideType
-          ? (json['slides'] as List? ?? [])
+          ? rawSlides
               .map((s) => ConceptSlide.fromJson(s as Map<String, dynamic>))
               .toList()
           : null,

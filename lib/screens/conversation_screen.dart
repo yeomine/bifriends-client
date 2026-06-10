@@ -2,15 +2,20 @@ import 'package:flutter/material.dart';
 import '../models/chat_model.dart';
 import '../models/member_model.dart';
 import '../services/chat_service.dart';
+import '../services/home_service.dart';
 import '../services/member_service.dart';
 import '../services/stt_service.dart';
 import '../theme/app_colors.dart';
 import '../screens/learning_activity_screen.dart';
+import '../widgets/app_toast.dart';
 import '../widgets/korean_learning_roadmap.dart';
 import '../widgets/learning_roadmap.dart' show LevelData, LevelStatus;
 
 class ConversationScreen extends StatefulWidget {
-  const ConversationScreen({super.key});
+  final String? pendingTodoId;
+  final VoidCallback? onTodoCompleted;
+
+  const ConversationScreen({super.key, this.pendingTodoId, this.onTodoCompleted});
 
   @override
   State<ConversationScreen> createState() => _ConversationScreenState();
@@ -20,8 +25,11 @@ class _ConversationScreenState extends State<ConversationScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ChatService _chatService = ChatService();
+  final HomeService _homeService = HomeService();
   final MemberService _memberService = MemberService();
   final SttService _sttService = SttService();
+
+  String? _pendingTodoId;
 
   Member? _member;
   late String _sessionId;
@@ -45,9 +53,18 @@ class _ConversationScreenState extends State<ConversationScreen> {
   @override
   void initState() {
     super.initState();
+    _pendingTodoId = widget.pendingTodoId;
     _sessionId = ChatService.generateSessionId();
     _fetchMember();
     _fetchSessions();
+  }
+
+  @override
+  void didUpdateWidget(ConversationScreen old) {
+    super.didUpdateWidget(old);
+    if (widget.pendingTodoId != null && widget.pendingTodoId != old.pendingTodoId) {
+      _pendingTodoId = widget.pendingTodoId;
+    }
   }
 
   @override
@@ -158,6 +175,16 @@ class _ConversationScreenState extends State<ConversationScreen> {
         if (chatResponse.todosCreated.isNotEmpty) {
           _showTodosSnackbar(chatResponse.todosCreated);
         }
+      }
+
+      // 첫 메시지 전송 성공 시 chat todo 완료 처리
+      if (_pendingTodoId != null) {
+        final todoId = _pendingTodoId!;
+        _pendingTodoId = null;
+        try {
+          await _homeService.completeTodo(todoId);
+        } catch (_) {}
+        widget.onTodoCompleted?.call();
       }
     } catch (e) {
       debugPrint('[Chat] sendMessage 오류: $e');
@@ -293,16 +320,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
     } catch (e) {
       debugPrint('[Chat] 세션 삭제 오류: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('삭제에 실패했어요. 다시 시도해줘!'),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            backgroundColor: AppColors.textMain,
-          ),
-        );
+        AppToast.show(context, '삭제에 실패했어요. 다시 시도해줘!', isError: true);
       }
     }
   }
@@ -637,20 +655,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
   void _showTodosSnackbar(List<TodoCreated> todos) {
     final text = todos.length == 1
-        ? '할 일 1개가 추가됐어요!'
-        : '할 일 ${todos.length}개가 추가됐어요!';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          text,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: AppColors.textMain,
-      ),
-    );
+        ? '🎉  할 일 1개가 추가됐어요!'
+        : '🎉  할 일 ${todos.length}개가 추가됐어요!';
+    AppToast.show(context, text);
   }
 
   Widget _buildInputBar() {

@@ -35,7 +35,8 @@ class LevelData {
 const int _cyclesPerLevel = 5;
 
 class LearningRoadmap extends StatefulWidget {
-  const LearningRoadmap({super.key});
+  final VoidCallback? onAnyStepCompleted;
+  const LearningRoadmap({super.key, this.onAnyStepCompleted});
 
   @override
   State<LearningRoadmap> createState() => _LearningRoadmapState();
@@ -231,7 +232,10 @@ class _LearningRoadmapState extends State<LearningRoadmap> {
                     initialStep: initialStep,
                     grade: _grade,
                     onStepCompleted: level.status != LevelStatus.locked
-                        ? _loadProgress
+                        ? () {
+                            _loadProgress();
+                            widget.onAnyStepCompleted?.call();
+                          }
                         : null,
                   ),
                 ),

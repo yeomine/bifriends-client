@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:bifriends_client/services/auth_service.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../widgets/app_toast.dart';
 import 'guardian_consent_screen.dart';
 import 'mode_selection_screen.dart';
 
@@ -51,9 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('로그인 중 오류가 발생했습니다: $e')));
+      AppToast.show(context, '로그인 중 오류가 발생했습니다.', isError: true);
     } finally {
       if (mounted) {
         setState(() {

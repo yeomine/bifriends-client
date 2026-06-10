@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../services/report_service.dart';
 import '../services/member_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/app_toast.dart';
 import '../widgets/guardian_mission_sheet.dart';
 import 'login_screen.dart';
 
@@ -139,21 +140,14 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
 
       debugPrint('[Report] 생성 요청 완료');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('리포트 생성 요청이 완료됐어요! 잠시 후 확인해 주세요.'),
-          duration: Duration(seconds: 3),
-        ),
-      );
+      AppToast.show(context, '리포트 생성 요청이 완료됐어요! 잠시 후 확인해 주세요.');
       setState(() => _isListLoading = true);
       await _fetchReportList();
     } catch (e, st) {
       debugPrint('[Report] 생성 요청 실패: $e');
       debugPrint('[Report] $st');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('리포트 생성 요청에 실패했어요: $e')),
-        );
+        AppToast.show(context, '리포트 생성 요청에 실패했어요.', isError: true);
       }
     } finally {
       if (mounted) setState(() => _isGenerating = false);

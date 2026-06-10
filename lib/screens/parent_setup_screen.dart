@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/onboarding_service.dart';
+import '../widgets/app_toast.dart';
 import 'onboarding_screen.dart';
 
 class ParentSetupScreen extends StatefulWidget {
@@ -30,12 +31,7 @@ class _ParentSetupScreenState extends State<ParentSetupScreen> {
           _pinError = true;
           _confirmPin = '';
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('비밀번호가 일치하지 않습니다. 다시 입력해주세요.'),
-            backgroundColor: Color(0xFFF07D4F),
-          ),
-        );
+        AppToast.show(context, '비밀번호가 일치하지 않습니다. 다시 입력해주세요.', isError: true);
         return;
       }
       setState(() => _isLoading = true);
@@ -52,12 +48,7 @@ class _ParentSetupScreenState extends State<ParentSetupScreen> {
         }
       } catch (_) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('비밀번호 설정에 실패했어요. 다시 시도해 주세요.'),
-              backgroundColor: Color(0xFFF07D4F),
-            ),
-          );
+          AppToast.show(context, '비밀번호 설정에 실패했어요. 다시 시도해 주세요.', isError: true);
         }
       } finally {
         if (mounted) setState(() => _isLoading = false);

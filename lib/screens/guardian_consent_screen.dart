@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/onboarding_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/app_toast.dart';
 import 'parent_setup_screen.dart';
 
 class GuardianConsentScreen extends StatefulWidget {
@@ -205,12 +206,10 @@ class _GuardianConsentScreenState extends State<GuardianConsentScreen> {
                             );
                           } catch (e) {
                             if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  e.toString().replaceAll('Exception: ', ''),
-                                ),
-                              ),
+                            AppToast.show(
+                              context,
+                              e.toString().replaceAll('Exception: ', ''),
+                              isError: true,
                             );
                           } finally {
                             if (mounted) setState(() => _isLoading = false);

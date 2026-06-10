@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/member_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/app_toast.dart';
 import 'login_screen.dart';
 
 class MyInfoScreen extends StatefulWidget {
@@ -66,9 +67,7 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
   Future<void> _save() async {
     final nickname = _nicknameController.text.trim();
     if (nickname.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('닉네임을 입력해주세요.')),
-      );
+      AppToast.show(context, '닉네임을 입력해주세요.');
       return;
     }
     setState(() => _isSaving = true);
@@ -79,20 +78,12 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
         interests: _selectedInterests,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('저장됐어요!'),
-            backgroundColor: AppColors.primary,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        AppToast.show(context, '저장됐어요!');
         Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('저장 실패: $e')),
-        );
+        AppToast.show(context, '저장에 실패했어요. 다시 시도해주세요.', isError: true);
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);

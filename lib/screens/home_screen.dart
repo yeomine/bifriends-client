@@ -15,7 +15,7 @@ import 'mode_selection_screen.dart';
 import 'my_info_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  final void Function(int tabIndex)? onNavigateToTab;
+  final void Function(int tabIndex, {String? todoId})? onNavigateToTab;
 
   const HomeScreen({super.key, this.onNavigateToTab});
 
@@ -225,10 +225,10 @@ class _HomeScreenState extends State<HomeScreen> {
   void _handleTodoTap(TodoItem todo) {
     if (todo.isCompleted) return;
 
-    setState(() => todo.isCompleted = true);
-
-    if (todo.id != null) {
-      _completeTodoSafely(todo);
+    // USER가 직접 추가한 todo는 탭 즉시 완료
+    if (todo.isUserCreated) {
+      setState(() => todo.isCompleted = true);
+      if (todo.id != null) _completeTodoSafely(todo);
     }
 
     if (todo.learningType != null) {
@@ -239,11 +239,21 @@ class _HomeScreenState extends State<HomeScreen> {
           builder: (_) => LearningRoadmapScreen(
             title: ismath ? '생각하는 힘 키우기' : '말하는 힘 키우기',
             subject: ismath ? 'math' : 'korean',
+            onStepCompleted: (!todo.isCompleted && todo.id != null)
+                ? () {
+                    if (todo.isCompleted) return;
+                    setState(() => todo.isCompleted = true);
+                    _completeTodoSafely(todo);
+                  }
+                : null,
           ),
         ),
       );
     } else if (todo.targetTabIndex != null) {
-      widget.onNavigateToTab?.call(todo.targetTabIndex!);
+      widget.onNavigateToTab?.call(
+        todo.targetTabIndex!,
+        todoId: (!todo.isCompleted && todo.id != null) ? todo.id : null,
+      );
     }
   }
 

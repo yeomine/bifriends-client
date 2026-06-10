@@ -47,8 +47,19 @@ class KoreanLearningService {
       final cycles = json['cycles'] as List<dynamic>? ?? [];
       for (int i = 0; i < cycles.length; i++) {
         final c = cycles[i] as Map<String, dynamic>;
-        debugPrint('[Korean] cycle[$i] type="${c['type'] ?? c['cycle_type']}"');
+        final typeStr = c['type'] ?? c['cycle_type'];
+        debugPrint('[Korean] cycle[$i] type="$typeStr"');
         debugPrint('[Korean] cycle[$i] keys=${c.keys.toList()}');
+        if (typeStr == 'word_card') {
+          final slides = c['slides'] as List?;
+          final words = c['words'] as List?;
+          debugPrint('[Korean] cycle[$i] slides=${slides?.length ?? 'null'} words=${words?.length ?? 'null'}');
+          final items = slides ?? words ?? [];
+          if (items.isNotEmpty) {
+            debugPrint('[Korean] cycle[$i] item[0] keys=${(items.first as Map).keys.toList()}');
+            debugPrint('[Korean] cycle[$i] item[0]=${items.first}');
+          }
+        }
         final questions = c['questions'] as List?;
         if (questions != null && questions.isNotEmpty) {
           final q = questions.first as Map<String, dynamic>;

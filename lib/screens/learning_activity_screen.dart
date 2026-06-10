@@ -435,25 +435,32 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
         ? '낱말 카드'
         : '개념 이야기';
 
+    final isWordCard = _currentCycle.type == CycleType.wordCard;
+
     return SingleChildScrollView(
       key: key,
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
       physics: const BouncingScrollPhysics(),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: isWordCard
+            ? CrossAxisAlignment.center
+            : CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0F8ED),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              conceptLabel,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F8ED),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                conceptLabel,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
               ),
             ),
           ),
@@ -471,16 +478,53 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
                 ),
               ),
             ),
-          const SizedBox(height: 28),
-          RichInlineText(
-            spans: slide.spans,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textMain,
-              height: 1.6,
+          const SizedBox(height: 24),
+          if (isWordCard && slide.word != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Text(
+                slide.word!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.primary,
+                  height: 1.2,
+                ),
+              ),
             ),
-          ),
+            const SizedBox(height: 20),
+            RichInlineText(
+              spans: slide.spans,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textMain,
+                height: 1.6,
+              ),
+            ),
+          ] else
+            RichInlineText(
+              spans: slide.spans,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textMain,
+                height: 1.6,
+              ),
+            ),
           const SizedBox(height: 20),
           _buildQuestionDots(),
         ],
@@ -956,67 +1000,201 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
   }
 
   Widget _buildHintPanel(List<List<RichSpan>> hintSpans) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (_hintsShown < hintSpans.length)
-          SizedBox(
-            height: 60,
-            child: ElevatedButton(
-              onPressed: () => setState(() => _hintsShown++),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.hint,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+    if (hintSpans.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton(
+        onPressed: () => _showHintModal(hintSpans),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.hint,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+        child: Text(
+          _hintsShown > 0
+              ? '💡 힌트 $_hintsShown/${hintSpans.length} 확인 중'
+              : '💡 힌트 보기',
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textMain,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showHintModal(List<List<RichSpan>> hintSpans) {
+    int count = _hintsShown;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) {
+          return Container(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 32,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDDD8D0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-                elevation: 0,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 8, 8),
+                  child: Row(
+                    children: [
+                      const Text('💡', style: TextStyle(fontSize: 22)),
+                      const SizedBox(width: 8),
+                      const Text(
+                        '힌트',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textMain,
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: AppColors.textSub,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    children: [
+                      if (count == 0)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Text(
+                            '아직 힌트를 열지 않았어요.\n아래 버튼을 눌러 첫 번째 힌트를 확인해봐요!',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: AppColors.textSub,
+                              height: 1.5,
+                            ),
+                          ),
+                        )
+                      else
+                        for (int i = 0; i < count; i++)
+                          _buildHintItem(i, hintSpans[i]),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: count < hintSpans.length
+                            ? ElevatedButton(
+                                onPressed: () {
+                                  count++;
+                                  setModal(() {});
+                                  setState(() => _hintsShown = count);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.hint,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                child: Text(
+                                  count == 0
+                                      ? '첫 번째 힌트 보기'
+                                      : '다음 힌트 보기 (${hintSpans.length - count}개 남음)',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textMain,
+                                  ),
+                                ),
+                              )
+                            : OutlinedButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(
+                                    color: AppColors.primary,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                child: const Text(
+                                  '힌트를 모두 확인했어요 💪',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildHintItem(int index, List<RichSpan> spans) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF8E7),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              '힌트 ${index + 1}  ',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFFA07000),
               ),
-              child: Text(
-                '💡 힌트 보기 (${hintSpans.length - _hintsShown}개 남음)',
+            ),
+            Expanded(
+              child: RichInlineText(
+                spans: spans,
                 style: const TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.textMain,
+                  height: 1.5,
                 ),
               ),
             ),
-          ),
-        for (int i = 0; i < _hintsShown; i++)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF8E7),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '힌트 ${i + 1}: ',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFA07000),
-                    ),
-                  ),
-                  Expanded(
-                    child: RichInlineText(
-                      spans: hintSpans[i],
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFFA07000),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-      ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -1218,11 +1396,11 @@ class _StepCompletionOverlayState extends State<_StepCompletionOverlay>
                       children: [
                         const Text('🌟', style: TextStyle(fontSize: 90)),
                         const SizedBox(height: 20),
-                        const Text(
+                        Text(
                           '참 잘했어!',
-                          style: TextStyle(
+                          style: GoogleFonts.gaegu(
                             fontSize: 38,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w700,
                             color: AppColors.textMain,
                           ),
                         ),

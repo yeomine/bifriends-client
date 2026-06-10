@@ -1,17 +1,37 @@
 import 'package:flutter/material.dart';
+import '../services/home_service.dart';
 import '../theme/app_colors.dart';
 import 'story_loading_screen.dart';
 import 'mind_sessions_screen.dart';
 
 class FriendsScreen extends StatefulWidget {
-  const FriendsScreen({super.key});
+  final String? pendingTodoId;
+  final VoidCallback? onTodoCompleted;
+
+  const FriendsScreen({super.key, this.pendingTodoId, this.onTodoCompleted});
 
   @override
   State<FriendsScreen> createState() => _FriendsScreenState();
 }
 
 class _FriendsScreenState extends State<FriendsScreen> {
+  final HomeService _homeService = HomeService();
   String? _selectedEmotion;
+  String? _pendingTodoId;
+
+  @override
+  void initState() {
+    super.initState();
+    _pendingTodoId = widget.pendingTodoId;
+  }
+
+  @override
+  void didUpdateWidget(FriendsScreen old) {
+    super.didUpdateWidget(old);
+    if (widget.pendingTodoId != null && widget.pendingTodoId != old.pendingTodoId) {
+      _pendingTodoId = widget.pendingTodoId;
+    }
+  }
 
   static const List<_EmotionItem> _emotions = [
     _EmotionItem(label: '기쁨', emoji: '😊', value: '기쁨'),
@@ -145,8 +165,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
                       child: ElevatedButton(
                         onPressed: _selectedEmotion == null
                             ? null
-                            : () {
-                                Navigator.push(
+                            : () async {
+                                await Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => StoryLoadingScreen(
@@ -154,6 +174,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                     ),
                                   ),
                                 );
+                                if (_pendingTodoId != null) {
+                                  final todoId = _pendingTodoId!;
+                                  _pendingTodoId = null;
+                                  try {
+                                    await _homeService.completeTodo(todoId);
+                                  } catch (_) {}
+                                  widget.onTodoCompleted?.call();
+                                }
                               },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,

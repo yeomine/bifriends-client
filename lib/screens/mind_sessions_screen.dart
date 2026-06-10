@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/mind_model.dart';
 import '../services/mind_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/app_toast.dart';
+import 'friends_activity_screen.dart';
 
 class MindSessionsScreen extends StatefulWidget {
   const MindSessionsScreen({super.key});
@@ -57,114 +59,19 @@ class _MindSessionsScreenState extends State<MindSessionsScreen> {
     try {
       final scenario = await MindService().getSession(summary.setId);
       if (!mounted) return;
-      showDialog(
-        context: context,
-        builder: (context) => Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Container(
-            padding: const EdgeInsets.all(28),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(28),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      _emotionEmoji[scenario.emotion] ?? '💭',
-                      style: const TextStyle(fontSize: 28),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        scenario.emotion,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textMain,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _detailRow(label: '배운 표현', value: scenario.learnedExpression),
-                const SizedBox(height: 8),
-                _detailRow(label: '상황', value: scenario.situation),
-                if (scenario.completedAt != null) ...[
-                  const SizedBox(height: 8),
-                  _detailRow(
-                    label: '완료일',
-                    value: _formatDate(scenario.completedAt!),
-                  ),
-                ],
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.textMain,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: const Text(
-                      '닫기',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FriendsActivityScreen(
+            scenario: scenario,
+            isReview: true,
           ),
         ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('세션 상세 조회 실패: $e'),
-          backgroundColor: const Color(0xFFD04B44),
-        ),
-      );
+      AppToast.show(context, '세션을 불러오지 못했어요.', isError: true);
     }
-  }
-
-  Widget _detailRow({required String label, required String value}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSub,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textMain,
-            height: 1.4,
-          ),
-        ),
-      ],
-    );
   }
 
   String _formatDate(String isoDate) {

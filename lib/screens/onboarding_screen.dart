@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/onboarding_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/app_toast.dart';
 import 'main_scaffold.dart';
 
 class SpeechBubbleShape extends ShapeBorder {
@@ -138,9 +139,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
-        );
+        AppToast.show(context, e.toString().replaceAll('Exception: ', ''), isError: true);
       }
     }
   }

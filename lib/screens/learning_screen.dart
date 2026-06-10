@@ -170,10 +170,15 @@ class _CategoryCard extends StatelessWidget {
 }
 
 class LearningRoadmapScreen extends StatelessWidget {
-  const LearningRoadmapScreen({required this.title, required this.subject});
+  const LearningRoadmapScreen({
+    required this.title,
+    required this.subject,
+    this.onStepCompleted,
+  });
 
   final String title;
   final String subject;
+  final VoidCallback? onStepCompleted;
 
   @override
   Widget build(BuildContext context) {
@@ -201,8 +206,8 @@ class LearningRoadmapScreen extends StatelessWidget {
         centerTitle: true,
       ),
       body: subject == 'math'
-          ? const LearningRoadmap()
-          : const KoreanLearningRoadmap(),
+          ? LearningRoadmap(onAnyStepCompleted: onStepCompleted)
+          : KoreanLearningRoadmap(onAnyStepCompleted: onStepCompleted),
     );
   }
 }
