@@ -20,7 +20,8 @@ class ConversationScreen extends StatefulWidget {
   State<ConversationScreen> createState() => _ConversationScreenState();
 }
 
-class _ConversationScreenState extends State<ConversationScreen> {
+class _ConversationScreenState extends State<ConversationScreen>
+    with TickerProviderStateMixin {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ChatService _chatService = ChatService();
@@ -68,6 +69,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
   @override
   void dispose() {
+    _toastEntry?.remove();
+    _toastEntry = null;
     _messageController.dispose();
     _scrollController.dispose();
     _sttService.dispose();
@@ -661,22 +664,82 @@ class _ConversationScreenState extends State<ConversationScreen> {
     }
   }
 
+  OverlayEntry? _toastEntry;
+
   void _showTodosSnackbar(List<TodoCreated> todos) {
     final text = todos.length == 1
-        ? '할 일 1개가 추가됐어요!'
-        : '할 일 ${todos.length}개가 추가됐어요!';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          text,
-          style: const TextStyle(fontWeight: FontWeight.w600),
+        ? '🎉  할 일 1개가 추가됐어요!'
+        : '🎉  할 일 ${todos.length}개가 추가됐어요!';
+    _toastEntry?.remove();
+    _toastEntry = null;
+
+    final controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+    final opacity = CurvedAnimation(parent: controller, curve: Curves.easeOut);
+    final slideY = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: controller, curve: Curves.easeOut));
+
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => Positioned(
+        bottom: 100,
+        left: 24,
+        right: 24,
+        child: FadeTransition(
+          opacity: opacity,
+          child: SlideTransition(
+            position: slideY,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.textMain,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  text,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: AppColors.textMain,
       ),
     );
+
+    Overlay.of(context).insert(entry);
+    _toastEntry = entry;
+    controller.forward();
+
+    Future.delayed(const Duration(milliseconds: 2500), () async {
+      if (!mounted || _toastEntry != entry) {
+        controller.dispose();
+        return;
+      }
+      await controller.reverse();
+      if (_toastEntry == entry) {
+        entry.remove();
+        _toastEntry = null;
+      }
+      controller.dispose();
+    });
   }
 
   Widget _buildInputBar() {
