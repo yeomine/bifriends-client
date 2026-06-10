@@ -8,8 +8,13 @@ const int _totalSteps = 4;
 
 class FriendsActivityScreen extends StatefulWidget {
   final MindScenario scenario;
+  final bool isReview;
 
-  const FriendsActivityScreen({super.key, required this.scenario});
+  const FriendsActivityScreen({
+    super.key,
+    required this.scenario,
+    this.isReview = false,
+  });
 
   @override
   State<FriendsActivityScreen> createState() => _FriendsActivityScreenState();
@@ -67,6 +72,10 @@ class _FriendsActivityScreenState extends State<FriendsActivityScreen> {
   }
 
   Future<void> _saveAndComplete() async {
+    if (widget.isReview) {
+      _showCompletionDialog(0, isReview: true);
+      return;
+    }
     setState(() => _isSaving = true);
     int rewardAmount = 0;
     try {
@@ -76,7 +85,7 @@ class _FriendsActivityScreenState extends State<FriendsActivityScreen> {
     _showCompletionDialog(rewardAmount);
   }
 
-  void _showCompletionDialog(int rewardAmount) {
+  void _showCompletionDialog(int rewardAmount, {bool isReview = false}) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -92,20 +101,23 @@ class _FriendsActivityScreenState extends State<FriendsActivityScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('🎯', style: TextStyle(fontSize: 60)),
+              Text(
+                isReview ? '📖' : '🎯',
+                style: const TextStyle(fontSize: 60),
+              ),
               const SizedBox(height: 20),
-              const Text(
-                '모두 이해했어!',
-                style: TextStyle(
+              Text(
+                isReview ? '다시 잘 풀었어!' : '모두 이해했어!',
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textMain,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                '오늘 배운 표현들을 잘 기억해줘!',
-                style: TextStyle(
+              Text(
+                isReview ? '배운 표현, 잘 기억하고 있구나!' : '오늘 배운 표현들을 잘 기억해줘!',
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textSub,
