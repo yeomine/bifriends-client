@@ -884,7 +884,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                 ),
                 const SizedBox(width: 10),
                 const Text(
-                  '이번주 부모 행동 가이드',
+                  '이번주 아이와 이렇게 함께해요',
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
@@ -905,7 +905,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
               children: [
                 _buildGuideSection(
                   icon: Icons.format_quote_rounded,
-                  label: '칭찬 멘트',
+                  label: '이렇게 칭찬해주세요',
                   badgeText: null,
                   child: hasPraise
                       ? Text(
@@ -930,7 +930,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                 const SizedBox(height: 16),
                 _buildGuideSection(
                   icon: Icons.theater_comedy_outlined,
-                  label: '함께할 역할극 주제',
+                  label: '같이 말해볼까요? ',
                   badgeText: null,
                   child: Text(
                     _mockRoleplayTopic,
