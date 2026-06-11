@@ -17,6 +17,13 @@ class ParentDashboardScreen extends StatefulWidget {
 class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   static const _allDays = LearningPattern.allDayLabels;
 
+  // 역할극 주제는 API 미구현 - mock 데이터 사용
+  static const _mockRoleplayTopic =
+      '이번 주 배운 \'공손하게 부탁하기\' 화용언어 표현을 연습해봐요!\n\n'
+      '🎭 상황: 마트에서 물건 찾기\n'
+      '아이: "저기요, 이거 어디 있어요? 하나만 주실 수 있어요?"\n'
+      '부모님: 점원이 되어 친절하게 답해주세요 😊';
+
   final _reportService = ReportService();
   final _memberService = MemberService();
   final _authService = AuthService();
@@ -31,6 +38,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   bool _isDetailLoading = false;
   bool _isGenerating = false;
   bool _showingHistory = false;
+  bool _isDetailExpanded = false;
 
   @override
   void initState() {
@@ -841,13 +849,12 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     );
   }
 
-  Widget _buildParentMissionCard() {
+  Widget _buildParentGuideCard() {
     final mission = _detail?.parentMission;
-    final isReady = mission?.isReady ?? false;
+    final hasPraise = mission?.isReady ?? false;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(20),
@@ -859,87 +866,95 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(10),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.waving_hand_rounded,
+                    color: AppColors.primary,
+                    size: 18,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.card_giftcard,
-                  color: AppColors.primary,
-                  size: 18,
+                const SizedBox(width: 10),
+                const Text(
+                  '이번주 부모 행동 가이드',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textMain,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              const Text(
-                '이번 주 보호자 미션',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textMain,
-                ),
-              ),
-              const Spacer(),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
-          if (!isReady) ...[
-            const Center(
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.hourglass_empty_rounded,
-                    size: 36,
-                    color: AppColors.textSub,
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    '미션이 아직 준비되지 않았어요',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textMain,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    '리포트 생성 후 잠시 기다리면 만들어져요!',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13,
+          Container(
+            height: 1,
+            color: AppColors.primary.withValues(alpha: 0.12),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildGuideSection(
+                  icon: Icons.format_quote_rounded,
+                  label: '칭찬 멘트',
+                  badgeText: null,
+                  child: hasPraise
+                      ? Text(
+                          mission!.praisePhrase,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textMain,
+                            height: 1.6,
+                          ),
+                        )
+                      : const Text(
+                          '리포트 생성 후 칭찬 멘트가 준비돼요.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textSub,
+                            height: 1.5,
+                          ),
+                        ),
+                ),
+                const SizedBox(height: 16),
+                _buildGuideSection(
+                  icon: Icons.theater_comedy_outlined,
+                  label: '함께할 역할극 주제',
+                  badgeText: null,
+                  child: Text(
+                    _mockRoleplayTopic,
+                    style: const TextStyle(
+                      fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textSub,
-                      height: 1.5,
+                      color: AppColors.textMain,
+                      height: 1.7,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ] else ...[
-            _buildMissionSection(
-              icon: Icons.format_quote_rounded,
-              label: '아이에게 건넬 칭찬 멘트',
-              text: mission!.praisePhrase,
-            ),
-            const SizedBox(height: 12),
-            _buildMissionSection(
-              icon: Icons.emoji_objects_outlined,
-              label: '함께하면 좋은 활동',
-              text: mission.activitySuggestion,
-            ),
-          ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildMissionSection({
+  Widget _buildGuideSection({
     required IconData icon,
     required String label,
-    required String text,
+    required String? badgeText,
+    required Widget child,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -952,13 +967,31 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
               label,
               style: const TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: AppColors.primary,
               ),
             ),
+            if (badgeText != null) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  badgeText,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(14),
@@ -973,17 +1006,106 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
               ),
             ],
           ),
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textMain,
-              height: 1.6,
-            ),
-          ),
+          child: child,
         ),
       ],
+    );
+  }
+
+  Widget _buildDetailSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: () => setState(() => _isDetailExpanded = !_isDetailExpanded),
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.analytics_outlined,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    '학습·정서 상세',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textMain,
+                    ),
+                  ),
+                  const Spacer(),
+                  AnimatedRotation(
+                    turns: _isDetailExpanded ? 0.5 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: const Icon(
+                      Icons.keyboard_arrow_down,
+                      color: AppColors.textSub,
+                      size: 24,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox(width: double.infinity),
+            secondChild: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(height: 1, color: const Color(0xFFF0EDE8)),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLearningPatternCard(_detail!),
+                      const SizedBox(height: 20),
+                      const Text(
+                        '학습 현황',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textMain,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ..._detail!.learningStatus.all.map(
+                        (s) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildSubjectCard(s),
+                        ),
+                      ),
+                      if (_detail!.chatSafety != null) ...[
+                        const SizedBox(height: 4),
+                        _buildChatSafetyCard(_detail!.chatSafety!),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            crossFadeState: _isDetailExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 250),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1142,30 +1264,11 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildParentMissionCard(),
-                      const SizedBox(height: 24),
+                      _buildParentGuideCard(),
+                      const SizedBox(height: 20),
                       _buildSummaryCard(_detail!),
-                      const SizedBox(height: 24),
-                      _buildLearningPatternCard(_detail!),
-                      const SizedBox(height: 24),
-                      const Text(
-                        '학습 현황',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textMain,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ..._detail!.learningStatus.all.map(
-                        (s) => Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: _buildSubjectCard(s),
-                        ),
-                      ),
-                      if (_detail!.chatSafety != null)
-                        _buildChatSafetyCard(_detail!.chatSafety!),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
+                      _buildDetailSection(),
                     ],
                   ),
                 ),
