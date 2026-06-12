@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/chat_model.dart';
 import '../models/member_model.dart';
@@ -6,16 +7,19 @@ import '../services/home_service.dart';
 import '../services/member_service.dart';
 import '../services/stt_service.dart';
 import '../theme/app_colors.dart';
-import '../screens/learning_activity_screen.dart';
 import '../widgets/app_toast.dart';
 import '../widgets/korean_learning_roadmap.dart';
-import '../widgets/learning_roadmap.dart' show LevelData, LevelStatus;
+import '../widgets/learning_roadmap.dart' show LearningRoadmap;
 
 class ConversationScreen extends StatefulWidget {
   final String? pendingTodoId;
   final VoidCallback? onTodoCompleted;
 
-  const ConversationScreen({super.key, this.pendingTodoId, this.onTodoCompleted});
+  const ConversationScreen({
+    super.key,
+    this.pendingTodoId,
+    this.onTodoCompleted,
+  });
 
   @override
   State<ConversationScreen> createState() => _ConversationScreenState();
@@ -62,7 +66,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
   @override
   void didUpdateWidget(ConversationScreen old) {
     super.didUpdateWidget(old);
-    if (widget.pendingTodoId != null && widget.pendingTodoId != old.pendingTodoId) {
+    if (widget.pendingTodoId != null &&
+        widget.pendingTodoId != old.pendingTodoId) {
       _pendingTodoId = widget.pendingTodoId;
     }
   }
@@ -291,10 +296,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text(
               '네, 지울게요',
-              style: TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -409,7 +411,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
                       ),
                     ),
                     Text(
-                      _sessions.isEmpty ? '대화 시작하기' : '${_sessions.length}개의 대화',
+                      _sessions.isEmpty
+                          ? '대화 시작하기'
+                          : '${_sessions.length}개의 대화',
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
@@ -456,16 +460,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: _leoBubbleDecoration,
-        child: const SizedBox(
-          width: 24,
-          height: 16,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: AppColors.primary,
-          ),
-        ),
+        child: const _TypingDots(),
       ),
     );
   }
@@ -621,36 +618,24 @@ class _ConversationScreenState extends State<ConversationScreen> {
   }
 
   void _handleCtaTap(CtaAction cta) {
-    if (cta.type == 'navigate_to_step') {
-      _pushScreen(
-        LearningActivityScreen(
-          levelData: LevelData(
-            level: cta.stepId ?? 1,
-            stepId: cta.stepId ?? 1,
-            title: cta.label,
-            description: '',
-            subtitle: '',
-            status: LevelStatus.current,
-            completedCycles: const [],
-          ),
-          initialStep: cta.cycleNumber ?? 1,
-          subject: cta.subject,
-        ),
-      );
-    } else if (cta.type == 'navigate_to_subject') {
-      _pushScreen(
-        Scaffold(
-          appBar: AppBar(
-            title: const Text('국어 공부방'),
-            backgroundColor: AppColors.background,
-            foregroundColor: AppColors.textMain,
-            elevation: 0,
+    final isMath = cta.subject == 'math';
+    _pushScreen(
+      Scaffold(
+        appBar: AppBar(
+          title: Text(
+            isMath ? '수학 공부방' : '국어 공부방',
+            style: const TextStyle(fontWeight: FontWeight.w800),
           ),
           backgroundColor: AppColors.background,
-          body: const KoreanLearningRoadmap(),
+          foregroundColor: AppColors.textMain,
+          elevation: 0,
         ),
-      );
-    }
+        backgroundColor: AppColors.background,
+        body: isMath
+            ? const LearningRoadmap()
+            : const KoreanLearningRoadmap(),
+      ),
+    );
   }
 
   void _showTodosSnackbar(List<TodoCreated> todos) {
@@ -789,7 +774,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
   }
 
   Widget _buildHistoryPanel() {
-    final activeSession = _sessions.where((s) => s.id == _sessionId).firstOrNull;
+    final activeSession = _sessions
+        .where((s) => s.id == _sessionId)
+        .firstOrNull;
     final pastSessions = _sessions.where((s) => s.id != _sessionId).toList();
 
     return Container(
@@ -874,104 +861,177 @@ class _ConversationScreenState extends State<ConversationScreen> {
                       ),
                     )
                   : _sessions.isEmpty
-                      ? const Center(
-                          child: Text(
-                            '아직 대화 기록이 없어요',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textSub,
+                  ? const Center(
+                      child: Text(
+                        '아직 대화 기록이 없어요',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSub,
+                        ),
+                      ),
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                      children: [
+                        if (activeSession != null) ...[
+                          Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.textMain,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => setState(
+                                      () => _isSessionsExpanded =
+                                          !_isSessionsExpanded,
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 14,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.chat_bubble_outline,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Text(
+                                              activeSession.title,
+                                              style: const TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.white,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Icon(
+                                            _isSessionsExpanded
+                                                ? Icons.keyboard_arrow_up
+                                                : Icons.keyboard_arrow_down,
+                                            color: Colors.white.withValues(
+                                              alpha: 0.8,
+                                            ),
+                                            size: 20,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.delete_outline,
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                    size: 18,
+                                  ),
+                                  onPressed: () =>
+                                      _confirmDeleteSession(activeSession),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
                             ),
                           ),
-                        )
-                      : ListView(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                          children: [
-                            if (activeSession != null) ...[
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: AppColors.textMain,
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: GestureDetector(
-                                        onTap: () => setState(
-                                          () => _isSessionsExpanded =
-                                              !_isSessionsExpanded,
-                                        ),
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 14,
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.chat_bubble_outline,
-                                                color: Colors.white,
-                                                size: 18,
-                                              ),
-                                              const SizedBox(width: 10),
-                                              Expanded(
-                                                child: Text(
-                                                  activeSession.title,
-                                                  style: const TextStyle(
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: Colors.white,
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Icon(
-                                                _isSessionsExpanded
-                                                    ? Icons.keyboard_arrow_up
-                                                    : Icons.keyboard_arrow_down,
-                                                color: Colors.white.withValues(
-                                                  alpha: 0.8,
-                                                ),
-                                                size: 20,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.delete_outline,
-                                        color: Colors.white.withValues(
-                                          alpha: 0.7,
-                                        ),
-                                        size: 18,
-                                      ),
-                                      onPressed: () =>
-                                          _confirmDeleteSession(activeSession),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                      ),
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (_isSessionsExpanded &&
-                                  pastSessions.isNotEmpty) ...[
-                                const SizedBox(height: 12),
-                                ...pastSessions.map(_buildSessionListItem),
-                              ],
-                            ] else
-                              ...pastSessions.map(_buildSessionListItem),
+                          if (_isSessionsExpanded &&
+                              pastSessions.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            ...pastSessions.map(_buildSessionListItem),
                           ],
-                        ),
+                        ] else
+                          ...pastSessions.map(_buildSessionListItem),
+                      ],
+                    ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _TypingDots extends StatefulWidget {
+  const _TypingDots();
+
+  @override
+  State<_TypingDots> createState() => _TypingDotsState();
+}
+
+class _TypingDotsState extends State<_TypingDots>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  static const _dotCount = 3;
+  static const _dotSize = 7.0;
+  static const _dotSpacing = 5.0;
+  static const _jumpHeight = 6.0;
+  // each dot starts its jump offset by this fraction of the cycle
+  static const _stagger = 0.2;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  double _dotOffset(int index) {
+    // shift each dot's phase by _stagger; clamp to [0,1) with modulo
+    final phase = (_controller.value - index * _stagger) % 1.0;
+    // smooth up-and-down: sin curve over first half of cycle, 0 for second half
+    if (phase < 0.5) {
+      return -math.sin(phase * math.pi * 2) * _jumpHeight;
+    }
+    return 0.0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (_, _) {
+        return SizedBox(
+          height: _dotSize + _jumpHeight,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (int i = 0; i < _dotCount; i++) ...[
+                if (i > 0) const SizedBox(width: _dotSpacing),
+                Transform.translate(
+                  offset: Offset(0, _dotOffset(i)),
+                  child: Container(
+                    width: _dotSize,
+                    height: _dotSize,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 }

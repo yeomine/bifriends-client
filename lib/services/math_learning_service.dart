@@ -1,24 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/api_config.dart';
 import '../models/learning_model.dart';
+import 'api_client.dart';
 
 class MathLearningService {
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
-
-  Future<Map<String, String>> _getHeaders() async {
-    final token = await _storage.read(key: 'accessToken');
-    if (token == null) throw Exception('로그인 토큰이 없습니다.');
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
-  }
-
   Future<RoadmapResponse> getRoadmap() async {
     final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/learning/math/roadmap');
-    final response = await http.get(url, headers: await _getHeaders());
+    final response = await ApiClient.execute((h) => http.get(url, headers: h));
     if (response.statusCode == 200) {
       return RoadmapResponse.fromJson(
         jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>,
@@ -31,7 +20,7 @@ class MathLearningService {
     final url = Uri.parse(
       '${ApiConfig.baseUrl}/api/v1/learning/math/steps/$stepId/content',
     );
-    final response = await http.get(url, headers: await _getHeaders());
+    final response = await ApiClient.execute((h) => http.get(url, headers: h));
     if (response.statusCode == 200) {
       return StepContentResponse.fromJson(
         jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>,
@@ -50,17 +39,20 @@ class MathLearningService {
       '${ApiConfig.baseUrl}/api/v1/learning/math/steps/$stepId'
       '/cycles/$cycleNumber/questions/$questionIndex/validate',
     );
-    final response = await http.post(
-      url,
-      headers: await _getHeaders(),
-      body: jsonEncode({'answer': answer}),
+    final body = jsonEncode({'answer': answer});
+    final response = await ApiClient.execute(
+      (h) => http
+          .post(url, headers: h, body: body)
+          .timeout(const Duration(seconds: 15)),
     );
     if (response.statusCode == 200) {
       return ValidateResponse.fromJson(
         jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>,
       );
     }
-    throw Exception('답안 검증 실패: ${response.statusCode}');
+    throw Exception(
+      '답안 검증 실패: ${response.statusCode} ${utf8.decode(response.bodyBytes)}',
+    );
   }
 
   Future<CycleCompleteResponse> completeCycle({
@@ -71,7 +63,7 @@ class MathLearningService {
       '${ApiConfig.baseUrl}/api/v1/learning/math/steps/$stepId'
       '/cycles/$cycleNumber/complete',
     );
-    final response = await http.post(url, headers: await _getHeaders());
+    final response = await ApiClient.execute((h) => http.post(url, headers: h));
     if (response.statusCode == 200) {
       return CycleCompleteResponse.fromJson(
         jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>,
@@ -84,7 +76,7 @@ class MathLearningService {
     final url = Uri.parse(
       '${ApiConfig.baseUrl}/api/v1/learning/math/steps/$stepId/complete',
     );
-    final response = await http.post(url, headers: await _getHeaders());
+    final response = await ApiClient.execute((h) => http.post(url, headers: h));
     if (response.statusCode == 200) {
       return StepCompleteResponse.fromJson(
         jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>,

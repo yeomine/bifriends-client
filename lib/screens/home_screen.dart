@@ -49,7 +49,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _fetchData() async {
-    await Future.wait([_fetchHomeData(), _fetchUserInfo(), _fetchEquippedOutfit()]);
+    await Future.wait([
+      _fetchHomeData(),
+      _fetchUserInfo(),
+      _fetchEquippedOutfit(),
+    ]);
   }
 
   Future<void> _fetchEquippedOutfit() async {
@@ -233,8 +237,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (todo.learningType != null) {
       final ismath = todo.learningType == LearningType.MATH;
-      Navigator.push(
-        context,
+      final nav = Navigator.of(context);
+      widget.onNavigateToTab?.call(1);
+      nav.push(
         MaterialPageRoute(
           builder: (_) => LearningRoadmapScreen(
             title: ismath ? '생각하는 힘 키우기' : '말하는 힘 키우기',
@@ -242,7 +247,8 @@ class _HomeScreenState extends State<HomeScreen> {
             onStepCompleted: (!todo.isCompleted && todo.id != null)
                 ? () {
                     if (todo.isCompleted) return;
-                    setState(() => todo.isCompleted = true);
+                    todo.isCompleted = true;
+                    if (mounted) setState(() {});
                     _completeTodoSafely(todo);
                   }
                 : null,
@@ -980,7 +986,6 @@ class _TodoSheetState extends State<_TodoSheet> {
     );
   }
 }
-
 
 class _DeleteConfirmDialog extends StatelessWidget {
   final String todoTitle;

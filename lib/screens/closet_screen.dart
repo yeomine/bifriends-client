@@ -30,6 +30,14 @@ class _ClosetScreenState extends State<ClosetScreen> {
     _fetchItems();
   }
 
+  static const _defaultItem = ClosetItem(
+    itemCode: 'OUTFIT_DEFAULT',
+    name: '기본 의상',
+    category: 'OUTFIT',
+    imageKey: 'leo_default',
+    owned: true,
+  );
+
   Future<void> _fetchItems() async {
     setState(() => _isLoading = true);
     try {
@@ -42,8 +50,14 @@ class _ClosetScreenState extends State<ClosetScreen> {
             results[0] as ({List<ClosetItem> items, EquippedItems equipped});
         final shopResult =
             results[1] as ({List<ClosetItem> items, int availablePool});
+
+        var myItems = myResult.items;
+        if (!myItems.any((i) => i.itemCode == 'OUTFIT_DEFAULT')) {
+          myItems = [_defaultItem, ...myItems];
+        }
+
         setState(() {
-          _myItems = myResult.items;
+          _myItems = myItems;
           _equipped = myResult.equipped;
           _shopItems = shopResult.items;
           _availablePool = shopResult.availablePool;
@@ -63,8 +77,34 @@ class _ClosetScreenState extends State<ClosetScreen> {
     }
   }
 
+  bool _isItemEquipped(ClosetItem item) {
+    if (item.itemCode == 'OUTFIT_DEFAULT') return _equipped.outfitCode == null;
+    return _equipped.isEquipped(item.itemCode);
+  }
+
   Future<void> _toggleEquip(ClosetItem item) async {
     if (_isUpdating) return;
+
+    // 기본 의상 착용 = 현재 착용 해제
+    if (item.itemCode == 'OUTFIT_DEFAULT') {
+      if (_equipped.outfitCode == null) return;
+      final previousEquipped = _equipped;
+      setState(() { _isUpdating = true; _equipped = const EquippedItems(); });
+      try {
+        final newEquipped = await _closetService.unequipItem();
+        if (mounted) setState(() => _equipped = newEquipped);
+      } catch (e) {
+        debugPrint('equip error: $e');
+        if (mounted) {
+          setState(() => _equipped = previousEquipped);
+          AppToast.show(context, '착용에 실패했어요.', isError: true);
+        }
+      } finally {
+        if (mounted) setState(() => _isUpdating = false);
+      }
+      return;
+    }
+
     final alreadyEquipped = _equipped.isEquipped(item.itemCode);
     final previousEquipped = _equipped;
 
@@ -97,7 +137,7 @@ class _ClosetScreenState extends State<ClosetScreen> {
   }
 
   void _showEquipSheet(ClosetItem item) {
-    final alreadyEquipped = _equipped.isEquipped(item.itemCode);
+    final alreadyEquipped = _isItemEquipped(item);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -173,12 +213,35 @@ class _ClosetScreenState extends State<ClosetScreen> {
         item: item,
         onEquip: () {
           Navigator.pop(ctx);
-          setState(() => _selectedTab = 0);
-          _toggleEquip(item);
+          _equipAfterPurchase(item);
         },
         onClose: () => Navigator.pop(ctx),
       ),
     );
+  }
+
+  Future<void> _equipAfterPurchase(ClosetItem item) async {
+    if (_isUpdating) return;
+    final previousEquipped = _equipped;
+
+    setState(() {
+      _selectedTab = 0;
+      _isUpdating = true;
+      _equipped = EquippedItems(outfitCode: item.itemCode);
+    });
+
+    try {
+      final newEquipped = await _closetService.equipItem(item.itemCode);
+      if (mounted) setState(() => _equipped = newEquipped);
+    } catch (e) {
+      debugPrint('equip error: $e');
+      if (mounted) {
+        setState(() => _equipped = previousEquipped);
+        AppToast.show(context, '착용에 실패했어요.', isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
   }
 
   @override
@@ -392,7 +455,7 @@ class _ClosetScreenState extends State<ClosetScreen> {
   }
 
   Widget _buildMyItemCard(ClosetItem item) {
-    final isEquipped = _equipped.isEquipped(item.itemCode);
+    final isEquipped = _isItemEquipped(item);
 
     return GestureDetector(
       onTap: () => _showEquipSheet(item),

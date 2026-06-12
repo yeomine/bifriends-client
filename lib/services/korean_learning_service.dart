@@ -1,28 +1,17 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/api_config.dart';
 import '../models/learning_model.dart';
+import 'api_client.dart';
 
 class KoreanLearningService {
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
-
-  Future<Map<String, String>> _getHeaders() async {
-    final token = await _storage.read(key: 'accessToken');
-    if (token == null) throw Exception('로그인 토큰이 없습니다.');
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
-  }
-
   Future<RoadmapResponse> getRoadmap() async {
     final url = Uri.parse(
       '${ApiConfig.baseUrl}/api/v1/learning/korean/roadmap',
     );
     debugPrint('[Korean] GET $url');
-    final response = await http.get(url, headers: await _getHeaders());
+    final response = await ApiClient.execute((h) => http.get(url, headers: h));
     debugPrint('[Korean] roadmap status: ${response.statusCode}');
     debugPrint('[Korean] roadmap body: ${utf8.decode(response.bodyBytes)}');
     if (response.statusCode == 200) {
@@ -38,12 +27,11 @@ class KoreanLearningService {
       '${ApiConfig.baseUrl}/api/v1/learning/korean/steps/$stepId/content',
     );
     debugPrint('[Korean] GET $url');
-    final response = await http.get(url, headers: await _getHeaders());
+    final response = await ApiClient.execute((h) => http.get(url, headers: h));
     debugPrint('[Korean] content status: ${response.statusCode}');
     if (response.statusCode == 200) {
       final decoded = utf8.decode(response.bodyBytes);
       final json = jsonDecode(decoded) as Map<String, dynamic>;
-      // 사이클별로 쪼개서 출력 (truncation 방지)
       final cycles = json['cycles'] as List<dynamic>? ?? [];
       for (int i = 0; i < cycles.length; i++) {
         final c = cycles[i] as Map<String, dynamic>;
@@ -88,10 +76,10 @@ class KoreanLearningService {
     );
     debugPrint('[Korean] POST $url');
     debugPrint('[Korean] validate body: $body');
-    final response = await http.post(
-      url,
-      headers: await _getHeaders(),
-      body: body,
+    final response = await ApiClient.execute(
+      (h) => http
+          .post(url, headers: h, body: body)
+          .timeout(const Duration(seconds: 15)),
     );
     debugPrint('[Korean] validate status: ${response.statusCode}');
     debugPrint(
@@ -114,7 +102,7 @@ class KoreanLearningService {
       '/cycles/$cycleNumber/complete',
     );
     debugPrint('[Korean] POST $url');
-    final response = await http.post(url, headers: await _getHeaders());
+    final response = await ApiClient.execute((h) => http.post(url, headers: h));
     debugPrint('[Korean] completeCycle status: ${response.statusCode}');
     debugPrint(
       '[Korean] completeCycle response: ${utf8.decode(response.bodyBytes)}',
@@ -132,7 +120,7 @@ class KoreanLearningService {
       '${ApiConfig.baseUrl}/api/v1/learning/korean/steps/$stepId/complete',
     );
     debugPrint('[Korean] POST $url');
-    final response = await http.post(url, headers: await _getHeaders());
+    final response = await ApiClient.execute((h) => http.post(url, headers: h));
     debugPrint('[Korean] completeStep status: ${response.statusCode}');
     debugPrint(
       '[Korean] completeStep response: ${utf8.decode(response.bodyBytes)}',

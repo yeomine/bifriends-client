@@ -14,6 +14,9 @@ class LearningActivityScreen extends StatefulWidget {
   final VoidCallback? onStepCompleted;
   final String subject;
   final int grade;
+  final bool isReview;
+  final bool isDemoMode;
+  final String nickname;
 
   const LearningActivityScreen({
     super.key,
@@ -22,6 +25,9 @@ class LearningActivityScreen extends StatefulWidget {
     this.onStepCompleted,
     this.subject = 'math',
     this.grade = 3,
+    this.isReview = false,
+    this.isDemoMode = false,
+    this.nickname = '친구',
   });
 
   @override
@@ -39,6 +45,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
   bool _showWrongOverlay = false;
   bool _showSuccessOverlay = false;
   bool _isLastStepCompleted = false;
+  int _completedCycleNumber = 1;
   bool _isValidating = false;
   late TextEditingController _answerController;
   late TextEditingController _denominatorController;
@@ -47,6 +54,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
   final KoreanLearningService _koreanService = KoreanLearningService();
 
   bool _useApiValidation = false;
+  bool _hasError = false;
   Passage? _passage;
 
   @override
@@ -61,49 +69,45 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
   }
 
   Future<void> _loadContent() async {
-    LearningStep step;
-    if (widget.levelData.stepId > 0) {
-      try {
-        final content = widget.subject == 'korean'
-            ? await _koreanService.getStepContent(widget.levelData.stepId)
-            : await _mathService.getStepContent(widget.levelData.stepId);
-        step = LearningStep(
-          stepId: content.stepId.toString(),
-          stepTitle: content.stepTitle,
-          stepDescription: content.concept,
-          cycles: content.cycles,
-        );
-        _passage = content.passage;
-        _useApiValidation = true;
-        debugPrint('[Content] 로드 성공: ${content.cycles.length}개 사이클');
-        for (final c in content.cycles) {
-          debugPrint(
-            '[Content]  ${c.cycleId} type=${c.type} slides=${c.slides?.length ?? 'null'}',
-          );
-        }
-      } catch (e, st) {
-        debugPrint('[Content] 파싱 실패: $e');
-        debugPrint('[Content] $st');
-        step = widget.subject == 'korean'
-            ? mockKoreanStepForLevel(widget.levelData.level)
-            : mockStepForLevel(widget.levelData.level);
-        _useApiValidation = false;
-      }
-    } else {
-      step = widget.subject == 'korean'
-          ? mockKoreanStepForLevel(widget.levelData.level)
-          : mockStepForLevel(widget.levelData.level);
-      _useApiValidation = false;
+    if (widget.levelData.stepId <= 0) {
+      if (!mounted) return;
+      setState(() {
+        _hasError = true;
+        _contentLoading = false;
+      });
+      return;
     }
-    if (!mounted) return;
-    setState(() {
-      _step = step;
-      _currentCycleIdx = (widget.initialStep - 1).clamp(
-        0,
-        step.cycles.length - 1,
+
+    try {
+      final content = widget.subject == 'korean'
+          ? await _koreanService.getStepContent(widget.levelData.stepId)
+          : await _mathService.getStepContent(widget.levelData.stepId);
+      final step = LearningStep(
+        stepId: content.stepId.toString(),
+        stepTitle: content.stepTitle,
+        stepDescription: content.concept,
+        cycles: content.cycles,
       );
-      _contentLoading = false;
-    });
+      _passage = content.passage;
+      _useApiValidation = true;
+      if (!mounted) return;
+      setState(() {
+        _step = step;
+        _currentCycleIdx = (widget.initialStep - 1).clamp(
+          0,
+          step.cycles.length - 1,
+        );
+        _contentLoading = false;
+      });
+    } catch (e, st) {
+      debugPrint('[Content] 로드 실패: $e');
+      debugPrint('[Content] $st');
+      if (!mounted) return;
+      setState(() {
+        _hasError = true;
+        _contentLoading = false;
+      });
+    }
   }
 
   @override
@@ -119,7 +123,6 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
   bool get _isLastQuestion =>
       _currentQuestionIdx >= _currentCycle.questionCount - 1;
 
-  // Only used for Korean / mock data local validation
   bool get _isCurrentAnswerCorrectLocal {
     switch (_currentCycle.type) {
       case CycleType.concept:
@@ -185,6 +188,12 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
       return;
     }
 
+    // 시연 모드: 답변 검증 없이 바로 진행
+    if (widget.isDemoMode) {
+      _advanceContent();
+      return;
+    }
+
     if (_useApiValidation) {
       await _onConfirmWithApi();
     } else {
@@ -241,8 +250,16 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
         return;
       }
       _advanceContent();
-    } catch (_) {
-      if (mounted) setState(() => _isValidating = false);
+    } catch (e) {
+      debugPrint('[Validate] 에러: $e');
+      if (!mounted) return;
+      setState(() => _isValidating = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('네트워크 오류가 발생했어요. 다시 시도해줘!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
   }
 
@@ -259,7 +276,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
 
   Future<void> _completeCycleAndShow() async {
     final wasLastCycle = _isLastCycle;
-    if (_useApiValidation) {
+    if (_useApiValidation && !widget.isReview) {
       try {
         await (widget.subject == 'korean'
             ? _koreanService.completeCycle(
@@ -284,17 +301,82 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
       }
     }
     if (!mounted) return;
+
+    if (widget.isReview && !wasLastCycle) {
+      setState(() {
+        _currentCycleIdx++;
+        _currentQuestionIdx = 0;
+        _resetQuestionState();
+      });
+      return;
+    }
+
     widget.onStepCompleted?.call();
     setState(() {
       _isLastStepCompleted = wasLastCycle;
+      _completedCycleNumber = _currentCycleIdx + 1;
       _showSuccessOverlay = true;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_contentLoading || _step == null) {
+    if (_contentLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_hasError || _step == null) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.wifi_off_rounded, size: 56, color: AppColors.borderLight),
+                const SizedBox(height: 20),
+                const Text(
+                  '학습 내용을 불러오지 못했어요',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textMain,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  '잠시 후 다시 시도해 주세요.',
+                  style: TextStyle(fontSize: 14, color: AppColors.textSub),
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _hasError = false;
+                      _contentLoading = true;
+                    });
+                    _loadContent();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    '다시 시도',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('돌아가기', style: TextStyle(color: AppColors.textSub)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -334,6 +416,8 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
             Positioned.fill(
               child: _StepCompletionOverlay(
                 isLastStep: _isLastStepCompleted,
+                cycleNumber: _completedCycleNumber,
+                nickname: widget.nickname,
                 onReturn: () => Navigator.pop(context),
               ),
             ),
@@ -351,6 +435,16 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
         ? 'g${widget.grade}_$image'
         : image;
     return 'assets/images/$folder/grade${widget.grade}/$filename';
+  }
+
+  // grade4 step1 cycle2 전용 시각화 이미지 경로 (해당 조건 외에는 null 반환)
+  String? _questionVisualizationImage() {
+    if (widget.subject != 'math') return null;
+    if (widget.grade != 4) return null;
+    if (widget.levelData.level != 1) return null;
+    if (_currentCycleIdx != 1) return null;
+    return 'assets/images/study_math/grade4/'
+        'g4_step1_cycle2_q${_currentQuestionIdx + 1}.png';
   }
 
   Widget _buildTopBar() {
@@ -474,7 +568,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
                   _resolveConceptImagePath(slide.image),
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  errorBuilder: (ctx, e, st) => const SizedBox.shrink(),
                 ),
               ),
             ),
@@ -536,6 +630,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
 
   Widget _buildChoiceQuestion({required Key key}) {
     final q = _currentCycle.choiceQuestions![_currentQuestionIdx];
+    final vizImage = _questionVisualizationImage();
 
     return SingleChildScrollView(
       key: key,
@@ -547,6 +642,17 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
           _buildPassagePanel(),
           _buildQuestionLabel('문제 풀기'),
           const SizedBox(height: 20),
+          if (vizImage != null) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.asset(
+                vizImage,
+                width: double.infinity,
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(24),
@@ -711,8 +817,9 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
 
   List<RichSpan> _splitAtPeriods(List<RichSpan> spans) {
     return spans.map((span) {
-      if (span is PlainSpan)
+      if (span is PlainSpan) {
         return PlainSpan(span.value.replaceAll('. ', '.\n'));
+      }
       return span;
     }).toList();
   }
@@ -729,6 +836,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
 
   Widget _buildShortAnswerQuestion({required Key key}) {
     final q = _currentCycle.shortAnswerQuestions![_currentQuestionIdx];
+    final vizImage = _questionVisualizationImage();
 
     return SingleChildScrollView(
       key: key,
@@ -740,6 +848,17 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
           _buildPassagePanel(),
           _buildQuestionLabel('직접 써보기'),
           const SizedBox(height: 20),
+          if (vizImage != null) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.asset(
+                vizImage,
+                width: double.infinity,
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(24),
@@ -1252,10 +1371,14 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
 
 class _StepCompletionOverlay extends StatefulWidget {
   final bool isLastStep;
+  final int cycleNumber;
+  final String nickname;
   final VoidCallback onReturn;
 
   const _StepCompletionOverlay({
     required this.isLastStep,
+    required this.cycleNumber,
+    required this.nickname,
     required this.onReturn,
   });
 
@@ -1273,9 +1396,53 @@ class _StepCompletionOverlayState extends State<_StepCompletionOverlay>
   final List<_ConfettiParticle> _particles = [];
   final Random _random = Random();
 
+  late String _topEmoji;
+  late String _praiseMessage;
+
+  void _initPraiseMessage() {
+    final rng = Random();
+    if (widget.isLastStep) {
+      _topEmoji = '🥳';
+      final msgs = [
+        '오늘 학습 완료!\n끝까지 해낸 거 대단해 🥳',
+        '다 풀었어!\n오늘 약속 지킨 ${widget.nickname} 최고야 💚',
+      ];
+      _praiseMessage = msgs[rng.nextInt(2)];
+    } else if (widget.cycleNumber == 1) {
+      _topEmoji = '🌱';
+      final msgs = [
+        '맞아!\n문제 꼼꼼하게 읽었구나 🌱',
+        '정확해!\n완벽하게 찾아냈어! ✨',
+      ];
+      _praiseMessage = msgs[rng.nextInt(2)];
+    } else if (widget.cycleNumber == 2) {
+      _topEmoji = '😊';
+      final msgs = [
+        '두 개 연속!\n오늘 집중력 너무 좋은걸! 😊',
+        '또 맞혔어!\n감 잡은 것 같은데?! 🍊🎉',
+      ];
+      _praiseMessage = msgs[rng.nextInt(2)];
+    } else if (widget.cycleNumber == 3) {
+      _topEmoji = '🌟';
+      final msgs = [
+        '세 개 다 맞혔어!!\n크~ 이 개념은 이제 너꺼다! 🌟',
+        '끝까지 해냈다!!\n진짜 잘했어 🎊',
+      ];
+      _praiseMessage = msgs[rng.nextInt(2)];
+    } else {
+      _topEmoji = '🔥';
+      final msgs = [
+        '거의 다 왔어!\n마지막까지 집중! 🔥',
+        '네 개나 맞혔어!\n이제 한 발짝만 더! 💪',
+      ];
+      _praiseMessage = msgs[rng.nextInt(2)];
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _initPraiseMessage();
 
     _confettiController = AnimationController(
       vsync: this,
@@ -1394,25 +1561,22 @@ class _StepCompletionOverlayState extends State<_StepCompletionOverlay>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('🌟', style: TextStyle(fontSize: 90)),
+                        if (widget.isLastStep)
+                          Image.asset(
+                            'assets/images/leo_smilingface.png',
+                            width: 120,
+                            height: 120,
+                          )
+                        else
+                          Text(_topEmoji, style: const TextStyle(fontSize: 90)),
                         const SizedBox(height: 20),
                         Text(
-                          '참 잘했어!',
+                          _praiseMessage,
                           style: GoogleFonts.gaegu(
-                            fontSize: 38,
+                            fontSize: 32,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textMain,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          widget.isLastStep
-                              ? '모두 완료! 정말 대단해! 🎊'
-                              : '다음 단계도 함께 해보자! 🌱',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSub,
+                            height: 1.4,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -1429,9 +1593,9 @@ class _StepCompletionOverlayState extends State<_StepCompletionOverlay>
                               ),
                               elevation: 0,
                             ),
-                            child: const Text(
-                              '로드맵으로 돌아가기',
-                              style: TextStyle(
+                            child: Text(
+                              widget.isLastStep ? '로드맵으로 돌아가기' : '계속하기',
+                              style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,
