@@ -16,6 +16,7 @@ class LearningActivityScreen extends StatefulWidget {
   final int grade;
   final bool isReview;
   final bool isDemoMode;
+  final String nickname;
 
   const LearningActivityScreen({
     super.key,
@@ -26,6 +27,7 @@ class LearningActivityScreen extends StatefulWidget {
     this.grade = 3,
     this.isReview = false,
     this.isDemoMode = false,
+    this.nickname = '친구',
   });
 
   @override
@@ -43,6 +45,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
   bool _showWrongOverlay = false;
   bool _showSuccessOverlay = false;
   bool _isLastStepCompleted = false;
+  int _completedCycleNumber = 1;
   bool _isValidating = false;
   late TextEditingController _answerController;
   late TextEditingController _denominatorController;
@@ -311,6 +314,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
     widget.onStepCompleted?.call();
     setState(() {
       _isLastStepCompleted = wasLastCycle;
+      _completedCycleNumber = _currentCycleIdx + 1;
       _showSuccessOverlay = true;
     });
   }
@@ -412,6 +416,8 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
             Positioned.fill(
               child: _StepCompletionOverlay(
                 isLastStep: _isLastStepCompleted,
+                cycleNumber: _completedCycleNumber,
+                nickname: widget.nickname,
                 onReturn: () => Navigator.pop(context),
               ),
             ),
@@ -1365,10 +1371,14 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
 
 class _StepCompletionOverlay extends StatefulWidget {
   final bool isLastStep;
+  final int cycleNumber;
+  final String nickname;
   final VoidCallback onReturn;
 
   const _StepCompletionOverlay({
     required this.isLastStep,
+    required this.cycleNumber,
+    required this.nickname,
     required this.onReturn,
   });
 
@@ -1386,9 +1396,53 @@ class _StepCompletionOverlayState extends State<_StepCompletionOverlay>
   final List<_ConfettiParticle> _particles = [];
   final Random _random = Random();
 
+  late String _topEmoji;
+  late String _praiseMessage;
+
+  void _initPraiseMessage() {
+    final rng = Random();
+    if (widget.isLastStep) {
+      _topEmoji = '🥳';
+      final msgs = [
+        '오늘 학습 완료!\n끝까지 해낸 거 대단해 🥳',
+        '다 풀었어!\n오늘 약속 지킨 ${widget.nickname} 최고야 💚',
+      ];
+      _praiseMessage = msgs[rng.nextInt(2)];
+    } else if (widget.cycleNumber == 1) {
+      _topEmoji = '🌱';
+      final msgs = [
+        '맞아!\n문제 꼼꼼하게 읽었구나 🌱',
+        '정확해!\n완벽하게 찾아냈어! ✨',
+      ];
+      _praiseMessage = msgs[rng.nextInt(2)];
+    } else if (widget.cycleNumber == 2) {
+      _topEmoji = '😊';
+      final msgs = [
+        '두 개 연속!\n오늘 집중력 너무 좋은걸! 😊',
+        '또 맞혔어!\n감 잡은 것 같은데?! 🍊🎉',
+      ];
+      _praiseMessage = msgs[rng.nextInt(2)];
+    } else if (widget.cycleNumber == 3) {
+      _topEmoji = '🌟';
+      final msgs = [
+        '세 개 다 맞혔어!!\n크~ 이 개념은 이제 너꺼다! 🌟',
+        '끝까지 해냈다!!\n진짜 잘했어 🎊',
+      ];
+      _praiseMessage = msgs[rng.nextInt(2)];
+    } else {
+      _topEmoji = '🔥';
+      final msgs = [
+        '거의 다 왔어!\n마지막까지 집중! 🔥',
+        '네 개나 맞혔어!\n이제 한 발짝만 더! 💪',
+      ];
+      _praiseMessage = msgs[rng.nextInt(2)];
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _initPraiseMessage();
 
     _confettiController = AnimationController(
       vsync: this,
@@ -1507,25 +1561,22 @@ class _StepCompletionOverlayState extends State<_StepCompletionOverlay>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('🌟', style: TextStyle(fontSize: 90)),
+                        if (widget.isLastStep)
+                          Image.asset(
+                            'assets/images/leo_smilingface.png',
+                            width: 120,
+                            height: 120,
+                          )
+                        else
+                          Text(_topEmoji, style: const TextStyle(fontSize: 90)),
                         const SizedBox(height: 20),
                         Text(
-                          '참 잘했어!',
+                          _praiseMessage,
                           style: GoogleFonts.gaegu(
-                            fontSize: 38,
+                            fontSize: 32,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textMain,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          widget.isLastStep
-                              ? '모두 완료! 정말 대단해! 🎊'
-                              : '다음 단계도 함께 해보자! 🌱',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSub,
+                            height: 1.4,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -1542,9 +1593,9 @@ class _StepCompletionOverlayState extends State<_StepCompletionOverlay>
                               ),
                               elevation: 0,
                             ),
-                            child: const Text(
-                              '로드맵으로 돌아가기',
-                              style: TextStyle(
+                            child: Text(
+                              widget.isLastStep ? '로드맵으로 돌아가기' : '계속하기',
+                              style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,

@@ -46,6 +46,7 @@ class _LearningRoadmapState extends State<LearningRoadmap> {
   List<StepSummaryResponse> _steps = [];
   bool _loaded = false;
   int _grade = 3;
+  String _nickname = '친구';
   final ScrollController _scrollController = ScrollController();
   final MathLearningService _service = MathLearningService();
   final MemberService _memberService = MemberService();
@@ -70,7 +71,9 @@ class _LearningRoadmapState extends State<LearningRoadmap> {
     if (!mounted) return;
     setState(() {
       _steps = results[0] as List<StepSummaryResponse>;
-      _grade = ((results[1] as Member).grade) ?? 3;
+      final member = results[1] as Member;
+      _grade = member.grade ?? 3;
+      _nickname = member.nickname ?? '친구';
       _loaded = true;
     });
     WidgetsBinding.instance.addPostFrameCallback(
@@ -231,6 +234,7 @@ class _LearningRoadmapState extends State<LearningRoadmap> {
                     levelData: level,
                     initialStep: initialStep,
                     grade: _grade,
+                    nickname: _nickname,
                     isReview: isComplete,
                     onStepCompleted: level.status != LevelStatus.locked
                         ? () {
