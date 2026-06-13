@@ -217,6 +217,107 @@ class ChatSafetyDetail {
       );
 }
 
+class LearningConceptItem {
+  final String concept;
+  final int solved;
+  final double avgAttempts;
+  final double avgHints;
+
+  const LearningConceptItem({
+    required this.concept,
+    required this.solved,
+    required this.avgAttempts,
+    required this.avgHints,
+  });
+
+  factory LearningConceptItem.fromJson(Map<String, dynamic> json) =>
+      LearningConceptItem(
+        concept: json['concept'] as String? ?? '',
+        solved: (json['solved'] as num?)?.toInt() ?? 0,
+        avgAttempts: (json['avg_attempts'] as num?)?.toDouble() ?? 0.0,
+        avgHints: (json['avg_hints'] as num?)?.toDouble() ?? 0.0,
+      );
+}
+
+class LearningSummaryTodos {
+  final int assigned;
+  final int completed;
+
+  const LearningSummaryTodos({
+    required this.assigned,
+    required this.completed,
+  });
+
+  double get completionRate => assigned == 0 ? 0 : completed / assigned;
+
+  factory LearningSummaryTodos.fromJson(Map<String, dynamic> json) =>
+      LearningSummaryTodos(
+        assigned: (json['assigned'] as num?)?.toInt() ?? 0,
+        completed: (json['completed'] as num?)?.toInt() ?? 0,
+      );
+}
+
+class LearningSummary {
+  final String weekStart;
+  final String weekEnd;
+  final String nickname;
+  final List<String> learnedExpressions;
+  final List<LearningConceptItem> math;
+  final List<LearningConceptItem> korean;
+  final LearningSummaryTodos todos;
+
+  const LearningSummary({
+    required this.weekStart,
+    required this.weekEnd,
+    required this.nickname,
+    required this.learnedExpressions,
+    required this.math,
+    required this.korean,
+    required this.todos,
+  });
+
+  String get weekRange {
+    try {
+      final s = DateTime.parse(weekStart);
+      final e = DateTime.parse(weekEnd);
+      return '${s.month}월 ${s.day}일 ~ ${e.month}월 ${e.day}일';
+    } catch (_) {
+      return '$weekStart ~ $weekEnd';
+    }
+  }
+
+  bool get isEmpty =>
+      learnedExpressions.isEmpty && math.isEmpty && korean.isEmpty;
+
+  factory LearningSummary.fromJson(Map<String, dynamic> json) =>
+      LearningSummary(
+        weekStart: json['weekStart'] as String? ?? '',
+        weekEnd: json['weekEnd'] as String? ?? '',
+        nickname: json['nickname'] as String? ?? '',
+        learnedExpressions: (json['learnedExpressions'] as List<dynamic>?)
+                ?.map((e) => e as String)
+                .toList() ??
+            [],
+        math: (json['math'] as List<dynamic>?)
+                ?.map(
+                  (e) =>
+                      LearningConceptItem.fromJson(e as Map<String, dynamic>),
+                )
+                .toList() ??
+            [],
+        korean: (json['korean'] as List<dynamic>?)
+                ?.map(
+                  (e) =>
+                      LearningConceptItem.fromJson(e as Map<String, dynamic>),
+                )
+                .toList() ??
+            [],
+        todos: LearningSummaryTodos.fromJson(
+          json['todos'] as Map<String, dynamic>? ?? {},
+        ),
+      );
+}
+
 class ReportDetail {
   final int reportId;
   final String weekStart;

@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/api_config.dart';
 import '../models/growth_report_model.dart';
-import '../models/guardian_mission_model.dart';
 
 class ReportService {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -16,6 +15,31 @@ class ReportService {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $accessToken',
     };
+  }
+
+  Future<LearningSummary> getLearningSummary({
+    required int memberId,
+    required String from,
+    required String to,
+  }) async {
+    final url = Uri.parse(
+      '${ApiConfig.baseUrl}/api/v1/report/learning-summary',
+    ).replace(queryParameters: {
+      'memberId': memberId.toString(),
+      'from': from,
+      'to': to,
+    });
+    final headers = await _getHeaders();
+    debugPrint('[ReportService] GET $url');
+    final response = await http.get(url, headers: headers);
+    debugPrint('[ReportService] getLearningSummary status: ${response.statusCode}');
+    debugPrint('[ReportService] getLearningSummary response: ${utf8.decode(response.bodyBytes)}');
+    if (response.statusCode == 200) {
+      final json =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      return LearningSummary.fromJson(json);
+    }
+    throw Exception('학습 요약 조회 실패: ${response.statusCode}');
   }
 
   Future<List<ReportSummary>> getReports() async {
@@ -50,73 +74,19 @@ class ReportService {
     throw Exception('리포트 상세 조회 실패: ${response.statusCode}');
   }
 
-  Future<GuardianMission> getParentMission(int reportId) async {
-    final url = Uri.parse(
-      '${ApiConfig.baseUrl}/api/v1/reports/$reportId/parent-mission',
-    );
+  Future<bool> generateReport({required String weekStart}) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/reports/generate');
     final headers = await _getHeaders();
-    final response = await http.post(url, headers: headers);
-    if (response.statusCode == 200) {
-      final json =
-          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      return GuardianMission.fromJson(json);
-    }
-    throw Exception('보호자 미션 조회 실패: ${response.statusCode}');
-  }
-
-  Future<ChatSafetyDetail?> fetchWeeklySafetyReport({
-    required int memberId,
-    required String weekStart,
-    required String weekEnd,
-  }) async {
-    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/weekly-safety-report');
-    final headers = await _getHeaders();
-    final body = jsonEncode({
-      'member_id': memberId,
-      'week_start': weekStart,
-      'week_end': weekEnd,
-    });
-    final response = await http.post(url, headers: headers, body: body);
-    if (response.statusCode == 200) {
-      final json =
-          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      if (json.containsKey('safety_signal')) {
-        return ChatSafetyDetail(
-          signal: ChatSafetyLevelExt.fromString(
-            json['safety_signal'] as String? ?? '',
-          ),
-          score: (json['score'] as num?)?.toInt() ?? 0,
-          reasonSummary: json['reason_summary'] as String? ?? '',
-        );
-      }
-    }
-    return null;
-  }
-
-  Future<bool> fetchWeeklyReport({
-    required int memberId,
-    required String weekStart,
-    required String weekEnd,
-    String sections = '',
-  }) async {
-    final url = Uri.parse('${ApiConfig.baseUrl}/api/v1/weekly-report');
-    final headers = await _getHeaders();
-    final body = jsonEncode({
-      'member_id': memberId,
-      'week_start': weekStart,
-      'week_end': weekEnd,
-      'sections': sections,
-    });
+    final body = jsonEncode({'week_start': weekStart});
     debugPrint('[ReportService] POST $url');
     debugPrint('[ReportService] body: $body');
     final response = await http.post(url, headers: headers, body: body);
-    debugPrint('[ReportService] status: ${response.statusCode}');
-    debugPrint('[ReportService] response: ${utf8.decode(response.bodyBytes)}');
-    if (response.statusCode == 200) {
-      final json =
-          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      return json['received'] as bool? ?? false;
+    debugPrint('[ReportService] generateReport status: ${response.statusCode}');
+    debugPrint('[ReportService] generateReport response: ${utf8.decode(response.bodyBytes)}');
+    if (response.statusCode != 200) {
+      throw Exception('리포트 생성 실패: ${response.statusCode} ${utf8.decode(response.bodyBytes)}');
     }
-    throw Exception('weekly-report 실패: ${response.statusCode} ${utf8.decode(response.bodyBytes)}');
+    final json = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    return json['accepted'] as bool? ?? false;
   }
 }

@@ -56,6 +56,7 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
   bool _useApiValidation = false;
   bool _hasError = false;
   Passage? _passage;
+  bool _showPassageReview = false;
 
   @override
   void initState() {
@@ -91,13 +92,14 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
       _passage = content.passage;
       _useApiValidation = true;
       if (!mounted) return;
+      final cycleIdx = (widget.initialStep - 1).clamp(0, step.cycles.length - 1);
       setState(() {
         _step = step;
-        _currentCycleIdx = (widget.initialStep - 1).clamp(
-          0,
-          step.cycles.length - 1,
-        );
+        _currentCycleIdx = cycleIdx;
         _contentLoading = false;
+        if (widget.subject == 'korean' && cycleIdx >= 1 && content.passage != null) {
+          _showPassageReview = true;
+        }
       });
     } catch (e, st) {
       debugPrint('[Content] 로드 실패: $e');
@@ -302,15 +304,6 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
     }
     if (!mounted) return;
 
-    if (widget.isReview && !wasLastCycle) {
-      setState(() {
-        _currentCycleIdx++;
-        _currentQuestionIdx = 0;
-        _resetQuestionState();
-      });
-      return;
-    }
-
     widget.onStepCompleted?.call();
     setState(() {
       _isLastStepCompleted = wasLastCycle;
@@ -419,6 +412,18 @@ class _LearningActivityScreenState extends State<LearningActivityScreen> {
                 cycleNumber: _completedCycleNumber,
                 nickname: widget.nickname,
                 onReturn: () => Navigator.pop(context),
+              ),
+            ),
+          if (_showPassageReview && _passage != null)
+            Positioned.fill(
+              child: _PassageReviewOverlay(
+                passage: _passage!,
+                nextCycleNumber: _currentCycleIdx + 1,
+                assetImagePath: widget.subject == 'korean'
+                    ? 'assets/images/study_korean/grade${widget.grade}/'
+                        'passage_grade${widget.grade}_step${widget.levelData.level}.png'
+                    : null,
+                onStart: () => setState(() => _showPassageReview = false),
               ),
             ),
         ],
@@ -1638,6 +1643,145 @@ class _ConfettiParticle {
     required this.size,
     required this.rotationSpeed,
   });
+}
+
+class _PassageReviewOverlay extends StatelessWidget {
+  final Passage passage;
+  final int nextCycleNumber;
+  final VoidCallback onStart;
+  final String? assetImagePath;
+
+  const _PassageReviewOverlay({
+    required this.passage,
+    required this.nextCycleNumber,
+    required this.onStart,
+    this.assetImagePath,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFF5F0E8),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '사이클 $nextCycleNumber 시작 전',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '지문을 다시 읽어봐요',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textMain,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFDCD5CA)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (passage.title != null && passage.title!.isNotEmpty) ...[
+                            Text(
+                              passage.title!,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                          Text(
+                            passage.text,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textMain,
+                              height: 1.8,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (assetImagePath != null) ...[
+                      const SizedBox(height: 16),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.asset(
+                          assetImagePath!,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context2, e, stack) => const SizedBox.shrink(),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              child: SizedBox(
+                width: double.infinity,
+                height: 60,
+                child: ElevatedButton(
+                  onPressed: onStart,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    '사이클 $nextCycleNumber 시작하기',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _WrongAnswerOverlay extends StatefulWidget {
